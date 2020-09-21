@@ -7,7 +7,7 @@
 #' @param M An r x r matrix with restrictions, with NA for unrestricted
 #' @param tol A 4-vector with tolerances for termination of: [1] overall
 #'    algorithm, [2] update of Beta and Sigma with W fixed, [3] update
-#'    of Beta, and [4] update of Sigma.
+#'    of Sigma, and [4] update of W.
 #'@param maxit A 4-vector with maximum number of iterations for the same steps
 #'   as the tol vector.
 #' @param quiet  A 4-vector indicating whether to print information for the
@@ -50,53 +50,73 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
 
   if(missing(W)) W <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE)
 
+  if(missing(Sigma)) Sigma <- diag(1e-6, r) # For small var, model approx. GLM
+
   out_iter <- 0
   iterate_outer <- out_iter < maxit[1] # Iterate updating (Beta, Sigma) and W
   while(iterate_outer){
+
+    # Joint update of Beta and Sigma
     in_iter <- 0
-    iterate_inner <- in_iter < maxit[2] # Iterate updating Beta and Sigma
+    iterate_inner <- in_iter < maxit[2]
     while(iterate_inner){
       D1 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 1))
       D2 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 2))
+
+      # Keep track of progress of joint Beta and Sigma update step
       start_obj <- -working_ll(Y, X, Beta, Sigma, W, psi, D1, D2)
+
+      # Update Beta
+      new_Beta <- update_beta(Y = Y, X = X, W = W, Sigma = Sigma, psi = psi,
+                              type = type)
+
+      # Update Sigma
+      Xb <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = T)
+      new_Sigma <- update_Sigma_PQL(H = Xb, A = psi * D2, B = D2, Sigma.init = Sigma,
+                                    M = M, epsilon = 0, tol.dykstra = tol[3],
+                                    tol.ipiano = tol[3],
+                                    max.iter.dykstra = maxit[3],
+                                    max.iter.ipiano = maxit[3],
+                                    quiet = quiet[3])
+
+      # Keep track of progress of joint Beta and Sigma update step
+      end_obj <- -working_ll(Y, X, new_Beta, new_Sigma, W, psi, D1, D2)
+      if(!quiet[2]){
+        cat("Change from Beta and Sigma update: ", end_obj - start_obj, "\n")
+        if(end_obj - start_obj > 0){
+          warning("Joint Beta and Sigma update increased objective function.")
+        }
+      }
+
+      # Check whether to terminate inner loop
+      in_iter <- in_iter + 1
+      change <- abs(end_obj - start_obj)
+      if(relative) change <- change / abs(start_obj)
+      iterate_inner <- ((change > tol[2]) & (in_iter < maxit[2]))
     }
 
+    # Update W
+    W <- update_W(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
+                 psi = psi, type = type, pen = 1e-6, tol = tol[4],
+                 maxit = maxit[4], quiet = quiet[4])
 
-    new_Sigma <- update_Sigma_PQL(H = H, A = Psi * B, B = B, Sigma.init = Sigma,
-                                  M = M, epsilon = 1e-4, tol.dykstra = tol_upd[1],
-                                  tol.ipiano = tol_upd[1],
-                                  max.iter.dykstra = maxit_upd[1],
-                                  max.iter.ipiano = maxit_upd[1],
-                                  quiet = quiet_upd[1])
-
-    new_Beta <- update_beta_pql_rcpp(Sigma = new_Sigma, Psi = Psi, Y_T = t(Y),
-                                     X_T = t(X), W_T = t(W), type = type,
-                                     n_preds = n_preds, mu_1 = 0)
-
-    beta_diff <- sum(abs(Beta - new_Beta))
-    sigma_diff <- sum(abs(Sigma - new_Sigma))
+    # Check whether to terminate inner loop
+    # Seems elementwise relative change could be unstable here?
     if(relative){
-      beta_diff <- beta_diff / sum(abs(Beta))
-      sigma_diff <- sigma_diff / sum(abs(Sigma))
+      change <- max(abs(c((Sigma - new_Sigma) / max(abs(Sigma)),
+                          (Beta - new_Beta) / max(abs(Beta)))))
+    } else{
+      change <- max(abs(c(Sigma - new_Sigma, Beta - new_Beta)))
     }
+    out_iter <- out_iter + 1
+    iterate_outer <-  ((change > tol[1]) & (out_iter < maxit[1]))
 
+    # Prepare next iteration
     Beta <- new_Beta
     Sigma <- new_Sigma
-
-    W <- update_W_pql(Beta = Beta, Omega = qr.solve(Sigma + diag(tol, n_resp)), Y = Y, X = X, W = W,
-                      type = type, n_preds = n_preds, pen = 1, quiet = quiet_upd[2])
-
-    difference <- max(beta_diff, sigma_diff)
-    iter <- iter + 1
-
-    if(!quiet){
-      cat("Difference: ", difference, " iter: ", iter, "\n")
-    }
-
-    if(iter >= maxit){
-      warning("Reached maximum number of iterations")
-      break
-    }
   }
-  return(list(Beta = Beta, Sigma = Sigma, W = W, iter  = iter, diff = difference))
+  return(list(Beta = Beta, Sigma = Sigma, W = W, iter = out_iter,
+              change = change))
 }
+
+

@@ -1,4 +1,4 @@
-update_beta<- function(Y, X, W, Sigma, psi, type)
+update_beta <- function(Y, X, W, Sigma, psi, type)
 {
   n <- nrow(Y)
   p <- ncol(X)
@@ -64,7 +64,7 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-6, tol = 1e-8,
 
     opt <- optim(par = W[ii, ], fn = obj, gr = grad, method = "L-BFGS-B",
                  control = list(factr = tol / .Machine$double.eps,
-                                maxit = maxit
+                                maxit = maxit,
                                 reltol = tol,
                                 trace = ifelse(quiet, 0, 6)))
     W[ii, ] <- opt$par

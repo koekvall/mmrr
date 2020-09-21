@@ -1,0 +1,10 @@
+Package: lvmmrPQL
+Type: Package
+Title: Estimation of Latent Variable Mixed Type REsponse Regressions by Penalized Quasi-Likelihood
+Version: 0.1.0
+Author: Karl Oskar Ekvall
+Maintainer: Karl Oskar Ekvall <k.o.ekvall@gmail.com>
+Description: 
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true

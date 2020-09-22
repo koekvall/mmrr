@@ -11,8 +11,7 @@ update_beta <- function(Y, X, W, Sigma, psi, type)
   H <- matrix(0, nrow = p, ncol = p + 1)
   for(ii in 1:n){
     # Working covariance
-    C <- sweep(Sigma, 2, D2[ii, ], FUN = "*")
-    C <- sweep(C, 1, D2[ii, ], FUN = "*")
+    C <- Sigma * tcrossprod(D2[ii, ]) # Works because drop = TRUE in D2 index
     diag(C) <- diag(C) + psi * D2[ii, ]
 
     # Working predictor

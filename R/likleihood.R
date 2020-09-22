@@ -1,7 +1,6 @@
 working_ll <- function(Y, X, Beta, Sigma, W, psi, D1, D2)
 {
   n <- nrow(Y)
-  p <- ncol(X)
   r <- ncol(Y)
 
   Xb <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = T)

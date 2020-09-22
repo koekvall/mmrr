@@ -14,7 +14,12 @@ The package can be installed from GitHub, using devtools.
   # devtools::install_github("koekvall/lvmmrPQL") 
 ```
 
-# Example
+
+# Notation
+
+The matrix of responses, $Y$, has $n$ rows and $r$ columns. The matrix of predictors, $X$, has $nr$ rows and $p$ columns; the first $r$ rows of $X$ are the design matrix for the $r$ responses in the first row of $Y$, the next $r$ rows of $X$ are the design matrix for the second row of $Y$, and so on. Thus, \texttt{matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE)} gives an $n\times r$ matrix whose $i$th row is the mean of the $i$th latent vector.
+
+# Example with normal responses
 ```{r}
 set.seed(4)
 n <- 500
@@ -27,59 +32,118 @@ Beta_true <- (1:r) / r
 
 # Variance parameters, psi treated as known
 Sigma_true <- 0.5^abs(outer(1:r, 1:r, FUN = "-"))
-psi_true <- rep(1, r)
+psi_true <- rep(0.5, r)
 
 Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
 # No restrictions with normal responses
 M <- matrix(NA, r, r)
 
+# Compute MLEs
+fit_MLE <- lm(Y ~ 1)
+Beta_MLE <- c(coef(fit_MLE))
+Sigma_MLE <- crossprod(residuals(fit_MLE)) / n - diag(psi_true)
+
+# Does MLE exist? That is, is maximizer PD?
+min(eigen(Sigma_MLE)$values)
+
 # Skip W update; obj. fun, does not depend on W with mult. norm. resp.
 # MLE of Beta does not depend on Sigma, so expect correct MLE for Beta
 # regardless of whether algorithm finds MLE of Sigma.
 fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = T,
-                           quiet = c(F, T, F, T),
-                           maxit = c(100, 100, 100, 0),
-                           tol = c(1e-12, 1e-8, 1e-12, 1e-8))
-# Difference to closed form MLEs
-fit$Beta - coef(lm(Y ~ 1))
-fit$Sigma - (cov(Y) - diag(psi_true))
+                           quiet = c(F, T, T, T),
+                           maxit = c(100, 100, 500, 0),
+                           tol = c(1e-12, 1e-8, 1e-12, 1e-8),
+                           psi = psi_true)
+# Difference to MLEs
+fit$Beta - Beta_MLE
+fit$Sigma - Sigma_MLE
 
 
-# Even if given the correct MLE as starting values, doesn't find it.
+# With MLE as starting value
 fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = T,
-                           quiet = c(F, T, F, T),
-                           maxit = c(100, 100, 100, 0),
+                           quiet = c(F, T, T, T),
+                           maxit = c(100, 100, 500, 0),
                            tol = c(1e-12, 1e-8, 1e-12, 1e-8),
-                           Beta = c(coef(lm(Y ~ 1))),
-                           Sigma = cov(Y) - diag(psi_true))
+                           Beta = Beta_MLE,
+                           Sigma = Sigma_MLE,
+                           psi = psi_true)
+fit$iter
+# Difference to MLEs
+fit$Beta - Beta_MLE
+fit$Sigma - Sigma_MLE
 
-# Difference to closed form MLEs
-fit$Beta - c(coef(lm(Y ~ 1)))
-fit$Sigma - (cov(Y) - diag(psi_true))
+# See that objective is correct
+D1 <- t(lvmmrPQL:::get_cumulant_diffs(t(fit$W), type, 1))
+D2 <- t(lvmmrPQL:::get_cumulant_diffs(t(fit$W), type, 2))
+
+lvmmrPQL:::working_ll(Y = Y, X = X, Beta = fit$Beta, Sigma = fit$Sigma,
+                     W = fit$W, psi = psi_true, D1 = D1, D2 = D2)
+
+lvmmrPQL:::working_ll(Y = Y, X = X, Beta = Beta_MLE, Sigma = Sigma_MLE,
+                     W = fit$W, psi = psi_true, D1 = D1, D2 = D2)
+
+# Double check w. multivariate normal likelihood
+Xb <- matrix(X %*% fit$Beta, nrow = n, ncol = r, byrow = T)
+sum(mvtnorm::dmvnorm(x = Y - Xb, sigma = fit$Sigma + diag(psi_true), log = TRUE))
+sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE + diag(psi_true), log = TRUE))
 ```
 
 
-<!-- # Example -->
+# Example with mixed-type responses
+```{r}
+set.seed(4)
+n <- 500
+type <- 2:3
+r <- length(type)
 
-<!-- We have $n = 100$ observations of $r = 3$ responses of different types, each with only an intercept as predictor. The covariance matrix has an autoregressive structure with correlation parameter $0.5$ and variance parameter $0.3$. -->
+# Each observation has one uniform predictor (SUR)
+X <- as.matrix(Matrix::KhatriRao(matrix(runif(n * r, -1, 1), n, r),
+                                 diag(1, r)))
+Beta_true <- (r:1) / r
 
-<!-- ```{r} -->
-<!-- set.seed(4) -->
-<!-- n <- 100 -->
-<!-- type <- c(1, 2, 3) -->
-<!-- r<- length(type) -->
-<!-- X <- Matrix::kronecker(rep(1, n), diag(3)) -->
-<!-- Beta_true <- (1:3) / 10 -->
-<!-- Sigma_true <- 0.3 * 0.5^abs(outer(1:r, 1:r, FUN = "-")) -->
-<!-- psi_true <- c(1, 1, 1) -->
+# Variance parameters, psi treated as known
+Sigma_true <- 0.9^abs(outer(1:r, 1:r, FUN = "-"))
+psi_true <- rep(1, r) # psi \neq 1 currently not supported Ber and Poi
 
-<!-- Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true), -->
-<!--                     type = type, psi = psi_true) -->
-<!-- M <- matrix(NA, r, r) -->
-<!-- diag(M)[2:3] <- 0.3 -->
+Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
+                    type = type, psi = psi_true)
+# No restrictions with normal responses
+M <- matrix(NA, r, r)
+diag(M)[type == 2] <- 1 # For identifiability (try)
 
-<!-- fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M) -->
-<!-- ``` -->
+fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+                           relative = T,
+                           quiet = c(F, F, F, T),
+                           maxit = c(1000, 1000, 5000, 1000),
+                           tol = c(1e-5, 1e-7, 1e-12, 1e-10),
+                           psi = psi_true,
+                           )
+# Difference to truth
+fit$Beta - Beta_true
+fit$Sigma - Sigma_true
+
+# Predict
+n_pred <- 1e4
+X_new <- as.matrix(Matrix::KhatriRao(matrix(runif(n_pred * r, -1, 1), n_pred, r),
+                                 diag(1, r)))
+Y_new <- lvmmrPQL::generate_lvmmr(X = X_new, Beta = Beta_true, R = chol(Sigma_true),
+                    type = type, psi = psi_true)
+Beta_GLM <- c(
+ coef(glm(Y[, 1] ~ 0 + X[seq(1, 2 * n,  by = 2), 1], family = "binomial")),
+  coef(glm(Y[, 2] ~ 0 + X[seq(2, 2 * n,  by = 2), 2], family = "poisson")))
+Xb_GLM <- matrix(X_new %*% Beta_GLM, nrow = n_pred, ncol = r, byrow = T)
+pred_GLM <- t(lvmmrPQL:::get_cumulant_diffs(t(Xb_GLM), type, 1))
+
+
+# We win (sometimes and often small).
+colMeans((Y_new - lvmmrPQL::predict_lvmmr(X = X_new,
+                                          Beta = fit$Beta,
+                                          sigma = sqrt(diag(fit$Sigma)),
+                                          type = type,
+                                          num_nodes = 15))^2)
+colMeans((Y_new - pred_GLM)^2)
+```
+

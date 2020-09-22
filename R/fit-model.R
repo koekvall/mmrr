@@ -60,11 +60,11 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
   iterate_outer <- out_iter < maxit[1] # Iterate updating (Beta, Sigma) and W
   while(iterate_outer){
 
-    # Joint update of Beta and Sigma
+    # Inner loop with joint update of Beta and Sigma
     in_iter <- 0
     iterate_inner <- in_iter < maxit[2]
 
-    # To avoid using Beta and Sigma in inner loop
+    # Avoid using Beta and Sigma in inner loop
     new_Beta <- Beta
     new_Sigma <- Sigma
 
@@ -73,7 +73,7 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
     D2 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 2))
     A <- sweep(D2, 2, psi, FUN = "*")
     while(iterate_inner){
-      # Keep track of progress of joint Beta and Sigma update step
+      # Track progress of Beta and Sigma update
       start_obj <- -working_ll(Y = Y, X = X, Beta = new_Beta,
                                  Sigma = new_Sigma, W = W,
                                  psi = psi, D1 = D1, D2 = D2)
@@ -105,7 +105,7 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
                                     max.iter.ipiano = maxit[3],
                                     quiet = quiet[3])
 
-      # Keep track of progress of joint Beta and Sigma update step
+      # Track progress of Beta and Sigma update
       end_obj <- -working_ll(Y = Y, X = X, Beta = new_Beta,
                                Sigma = new_Sigma, W = W,
                                psi = psi, D1 = D1, D2 = D2)
@@ -122,14 +122,15 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
       change <- abs(end_obj - start_obj)
       if(relative) change <- change / abs(start_obj)
       iterate_inner <- ((change > tol[2]) & (in_iter < maxit[2]))
-    }
+    } # End inner loop
+
     # Update W
     W <- update_W(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
-                 psi = psi, type = type, pen = 1e-6, tol = tol[4],
+                 psi = psi, type = type, pen = 1, tol = tol[4],
                  maxit = maxit[4], quiet = quiet[4])
 
-    # Check whether to terminate inner loop
-    # Seems elementwise relative change could be unstable here?
+    # Check whether to terminate outer loop
+    # (Seems elementwise relative change could be unstable here?)
     if(relative){
       change <- max(abs(c((Sigma - new_Sigma) / max(abs(Sigma)),
                           (Beta - new_Beta) / max(abs(Beta)))))
@@ -147,7 +148,7 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
     # Prepare next iteration
     Beta <- new_Beta
     Sigma <- new_Sigma
-  }
+  } # End outer loop
   return(list(Beta = Beta, Sigma = Sigma, W = W, iter = out_iter,
               change = change))
 }

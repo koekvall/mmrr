@@ -1,10 +1,14 @@
 Package: lvmmrPQL
 Type: Package
-Title: Estimation of Latent Variable Mixed Type REsponse Regressions by Penalized Quasi-Likelihood
-Version: 0.1.0
-Author: Karl Oskar Ekvall
+Title: Latent Variables Multivariate Mixed-type Regression by PQL
+Version: 0.1
+Date: 2020-09-21
+Author: Karl Oskar Ekvall <k.o.ekvall@gmail.com>, Aaron J. Molstad <amolstad@ufl.edu>
 Maintainer: Karl Oskar Ekvall <k.o.ekvall@gmail.com>
-Description: 
-License: What license is it under?
+Description: Fits latent variables multivariate mixed-type regression models,
+  using a penalized quasi-likleihood algorithm.
+License: MIT + file LICENSE
+Imports: Rcpp (>= 1.0.0), statmod, mvtnorm
+LinkingTo: Rcpp, RcppArmadillo
 Encoding: UTF-8
-LazyData: true
+RoxygenNote: 7.1.1

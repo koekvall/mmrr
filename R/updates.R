@@ -34,6 +34,7 @@ update_beta <- function(Y, X, W, Sigma, psi, type)
 update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-6, tol = 1e-8,
                      maxit = 100, quiet = T)
 {
+  if(maxit <= 0) return(W) # Allows maxit[4] = 0 to skip W update
   n <- nrow(Y)
   r <- ncol(Y)
   e_S <- eigen(Sigma)
@@ -41,18 +42,20 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-6, tol = 1e-8,
   for(ii in 1:n){
     # Objective function for W[ii, ]
     obj <- function(w){
-      d0 <- get_cumulant_diffs(w, type, 0)
+      w <- as.matrix(w, ncol = 1)
+      d0 <- c(get_cumulant_diffs(w, type, 0))
       val <- -sum(Y[ii, ] * w) + sum(d0)
       e <- w - Xb[ii, ]
       e <- crossprod(e_S$vectors, e)
-      e <- e * sqrt((pen + 1 / e_S$values))
+      e <- e * sqrt(pen + 1 / e_S$values)
       val <- val + 0.5 * sum(e^2)
       return(val)
     }
 
     # Gradient of objective function for W[ii, ]
     grad <- function(w){
-      d1 <- get_cumulant_diffs(w, type, 1)
+      w <- as.matrix(w, ncol = 1)
+      d1 <- c(get_cumulant_diffs(w, type, 1))
       val <- -t(Y[ii, , drop = F]) + d1
       e <- w - Xb[ii, ]
       e <- crossprod(e_S$vectors, e)
@@ -62,15 +65,15 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-6, tol = 1e-8,
       return(val)
     }
 
-    opt <- optim(par = W[ii, ], fn = obj, gr = grad, method = "L-BFGS-B",
-                 control = list(factr = tol / .Machine$double.eps,
+    opt <- stats::optim(par = W[ii, ], fn = obj, gr = grad,
+                        method = "L-BFGS-B",
+                        control = list(factr = tol / .Machine$double.eps,
                                 maxit = maxit,
-                                reltol = tol,
                                 trace = ifelse(quiet, 0, 6)))
     W[ii, ] <- opt$par
     if(opt$convergence != 0){
       warning(paste0("w_", ii, " update did not converge with message: ",
-                     opt$message))
+                     opt$message, " \n"))
     }
   }
   return(W)
@@ -155,8 +158,6 @@ update_Sigma_PQL <- function(H, A, B, Sigma.init, M, epsilon = 0, tol.dykstra = 
     }
     return(out)
   }
-
-
 
   Sigmakm1 <- Sigma.init
   Sigma <- Sigma.init

@@ -1,0 +1,85 @@
+---
+title: "Latent Variable Multivariate Mixed-type Response Regression"
+author: "Karl Oskar Ekvall"
+date: "9/21/2020"
+output: pdf_document
+---
+
+# Installation
+
+The package can be installed from GitHub, using devtools.
+
+```{r}
+  # Currently private repository
+  # devtools::install_github("koekvall/lvmmrPQL") 
+```
+
+# Example
+```{r}
+set.seed(4)
+n <- 500
+type <- rep(1, 5) # Only normal responses
+r <- length(type)
+
+# Each observation has its own intercept
+X <- Matrix::kronecker(rep(1, n), diag(r))
+Beta_true <- (1:r) / r
+
+# Variance parameters, psi treated as known
+Sigma_true <- 0.5^abs(outer(1:r, 1:r, FUN = "-"))
+psi_true <- rep(1, r)
+
+Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
+                    type = type, psi = psi_true)
+# No restrictions with normal responses
+M <- matrix(NA, r, r)
+
+# Skip W update; obj. fun, does not depend on W with mult. norm. resp.
+# MLE of Beta does not depend on Sigma, so expect correct MLE for Beta
+# regardless of whether algorithm finds MLE of Sigma.
+fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+                           relative = T,
+                           quiet = c(F, T, F, T),
+                           maxit = c(100, 100, 100, 0),
+                           tol = c(1e-12, 1e-8, 1e-12, 1e-8))
+# Difference to closed form MLEs
+fit$Beta - coef(lm(Y ~ 1))
+fit$Sigma - (cov(Y) - diag(psi_true))
+
+
+# Even if given the correct MLE as starting values, doesn't find it.
+fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+                           relative = T,
+                           quiet = c(F, T, F, T),
+                           maxit = c(100, 100, 100, 0),
+                           tol = c(1e-12, 1e-8, 1e-12, 1e-8),
+                           Beta = c(coef(lm(Y ~ 1))),
+                           Sigma = cov(Y) - diag(psi_true))
+
+# Difference to closed form MLEs
+fit$Beta - c(coef(lm(Y ~ 1)))
+fit$Sigma - (cov(Y) - diag(psi_true))
+```
+
+
+<!-- # Example -->
+
+<!-- We have $n = 100$ observations of $r = 3$ responses of different types, each with only an intercept as predictor. The covariance matrix has an autoregressive structure with correlation parameter $0.5$ and variance parameter $0.3$. -->
+
+<!-- ```{r} -->
+<!-- set.seed(4) -->
+<!-- n <- 100 -->
+<!-- type <- c(1, 2, 3) -->
+<!-- r<- length(type) -->
+<!-- X <- Matrix::kronecker(rep(1, n), diag(3)) -->
+<!-- Beta_true <- (1:3) / 10 -->
+<!-- Sigma_true <- 0.3 * 0.5^abs(outer(1:r, 1:r, FUN = "-")) -->
+<!-- psi_true <- c(1, 1, 1) -->
+
+<!-- Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true), -->
+<!--                     type = type, psi = psi_true) -->
+<!-- M <- matrix(NA, r, r) -->
+<!-- diag(M)[2:3] <- 0.3 -->
+
+<!-- fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M) -->
+<!-- ``` -->

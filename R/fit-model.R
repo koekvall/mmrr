@@ -15,13 +15,17 @@
 #' @param relative If TRUE, use relative decrease of parameters to determine
 #'   convergence, otherwise use absolute.
 #' @param Beta A p-vector with starting values for the regression coefficients.
+#' @param Sigma An r x r initial iterate for the latent covariance matrix.
 #' @param W An n x r initial iterate for the expansion points.
 #' @param psi An r-vector of variance parameters.
 #' @return A list of final iterates
-#' @useDynLib lvmmr, .registration = TRUE
+#' @useDynLib lvmmrPQL, .registration = TRUE
+#' @importFrom Rcpp sourceCpp
+#' @importFrom Rcpp evalCpp
+#' @export
 #' @export
 lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
-                      quiet = rep(TRUE, 4), relative = TRUE, Beta, W,
+                      quiet = rep(TRUE, 4), relative = TRUE, Beta, Sigma, W,
                       psi = rep(1, ncol(Y)))
 {
   # Define constants
@@ -42,15 +46,15 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
       fam <- c("gaussian", "binomial", "poisson")[unique_types[ii]]
       y_uni <- c(Y[, type == unique_types[ii]])
       X_uni <- X[rep(type == unique_types[ii], n), ]
-      glm_fit <- glm(y_uni ~ 0 + X_uni, family = fam)
-      uni_coef[, ii] <- coef(glm_fit)
+      glm_fit <- stats::glm(y_uni ~ 0 + X_uni, family = fam)
+      uni_coefs[, ii] <- stats::coef(glm_fit)
     }
     Beta <- apply(uni_coefs, 1, mean, na.rm = T) # Can also weight by SE
   }
 
   if(missing(W)) W <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE)
 
-  if(missing(Sigma)) Sigma <- diag(1e-6, r) # For small var, model approx. GLM
+  if(missing(Sigma)) Sigma <- diag(1e-3, r) # For small var, model approx. GLM
 
   out_iter <- 0
   iterate_outer <- out_iter < maxit[1] # Iterate updating (Beta, Sigma) and W
@@ -59,32 +63,57 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
     # Joint update of Beta and Sigma
     in_iter <- 0
     iterate_inner <- in_iter < maxit[2]
-    while(iterate_inner){
-      D1 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 1))
-      D2 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 2))
 
+    # To avoid using Beta and Sigma in inner loop
+    new_Beta <- Beta
+    new_Sigma <- Sigma
+
+    # Pre-compute
+    D1 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 1))
+    D2 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 2))
+    A <- sweep(D2, 2, psi, FUN = "*")
+    while(iterate_inner){
       # Keep track of progress of joint Beta and Sigma update step
-      start_obj <- -working_ll(Y, X, Beta, Sigma, W, psi, D1, D2)
+      start_obj <- -working_ll(Y = Y, X = X, Beta = new_Beta,
+                                 Sigma = new_Sigma, W = W,
+                                 psi = psi, D1 = D1, D2 = D2)
 
       # Update Beta
-      new_Beta <- update_beta(Y = Y, X = X, W = W, Sigma = Sigma, psi = psi,
+      new_Beta <- update_beta(Y = Y, X = X, W = W, Sigma = new_Sigma, psi = psi,
                               type = type)
 
+      if(!quiet[2]){
+        mid_obj <-  -working_ll(Y = Y, X = X, Beta = new_Beta,
+                                Sigma = new_Sigma, W = W,
+                                psi = psi, D1 = D1, D2 = D2)
+        cat("Change from Beta update: ", mid_obj - start_obj, "\n")
+        if(mid_obj - start_obj > tol[2]){
+          warning("Beta update increased objective function more than tol[2].
+                  \n")
+        }
+      }
+
       # Update Sigma
-      Xb <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = T)
-      new_Sigma <- update_Sigma_PQL(H = Xb, A = psi * D2, B = D2, Sigma.init = Sigma,
-                                    M = M, epsilon = 0, tol.dykstra = tol[3],
+      H <- matrix(X %*% new_Beta, nrow = n, ncol = r, byrow = T) # called Xb elsewhere
+      H <- D1 + D2 * (H - W)
+      H <- Y - H
+      new_Sigma <- update_Sigma_PQL(H = H, A =  A, B = D2,
+                                    Sigma.init = new_Sigma,
+                                    M = M, epsilon = 1e-8, tol.dykstra = tol[3],
                                     tol.ipiano = tol[3],
                                     max.iter.dykstra = maxit[3],
                                     max.iter.ipiano = maxit[3],
                                     quiet = quiet[3])
 
       # Keep track of progress of joint Beta and Sigma update step
-      end_obj <- -working_ll(Y, X, new_Beta, new_Sigma, W, psi, D1, D2)
+      end_obj <- -working_ll(Y = Y, X = X, Beta = new_Beta,
+                               Sigma = new_Sigma, W = W,
+                               psi = psi, D1 = D1, D2 = D2)
       if(!quiet[2]){
-        cat("Change from Beta and Sigma update: ", end_obj - start_obj, "\n")
-        if(end_obj - start_obj > 0){
-          warning("Joint Beta and Sigma update increased objective function.")
+        cat("Change from Sigma update: ", end_obj - mid_obj, "\n")
+        if(end_obj - mid_obj > tol[2]){
+          warning("Sigma update increased objective function more than tol[2].
+                  \n")
         }
       }
 
@@ -94,7 +123,6 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
       if(relative) change <- change / abs(start_obj)
       iterate_inner <- ((change > tol[2]) & (in_iter < maxit[2]))
     }
-
     # Update W
     W <- update_W(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
                  psi = psi, type = type, pen = 1e-6, tol = tol[4],
@@ -110,6 +138,11 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
     }
     out_iter <- out_iter + 1
     iterate_outer <-  ((change > tol[1]) & (out_iter < maxit[1]))
+
+    # Print progress of outer loop
+    if(!quiet[1]){
+      cat("Change in parameters: ", change, "\n")
+    }
 
     # Prepare next iteration
     Beta <- new_Beta

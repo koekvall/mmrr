@@ -30,53 +30,132 @@ update_beta <- function(Y, X, W, Sigma, psi, type)
   return(qr.solve(H[, 1:p], H[, p + 1]))
 }
 
-update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-6, tol = 1e-8,
+update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
                      maxit = 100, quiet = T)
 {
   if(maxit <= 0) return(W) # Allows maxit[4] = 0 to skip W update
   n <- nrow(Y)
   r <- ncol(Y)
+
+  # Set lower limit on eigenvalues for stability
   e_S <- eigen(Sigma)
+  e_S$values <- sapply(e_S$values, max, sqrt(.Machine$double.eps))
+
+  # Replace by "inverse"
+  Sigma <- e_S$vectors %*% (e_S$values * t(e_S$vectors))
+
+  # Precompute
   Xb <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = T)
+
+  # This update uses ui = W[ii, ] - Xb[ii, ]
+  # The ith objective is:
+  #     Y[ii, ] * u - c(u + Xb[ii, ]) - 0.5 * t(u) %*% solve(Sigma) %*% u
+
   for(ii in 1:n){
-    # Objective function for W[ii, ]
-    obj <- function(w){
-      w <- as.matrix(w, ncol = 1)
-      d0 <- c(get_cumulant_diffs(w, type, 0))
-      val <- -sum(Y[ii, ] * w) + sum(d0)
-      e <- w - Xb[ii, ]
-      e <- crossprod(e_S$vectors, e)
-      e <- e * sqrt(pen + 1 / e_S$values)
-      val <- val + 0.5 * sum(e^2)
-      return(val)
-    }
+    trust_obj <- function(u){
+      u <- as.matrix(u, ncol = 1)
+      d0 <- as.numeric(get_cumulant_diffs(u + Xb[ii, ], type, 0))
+      d1 <- as.numeric(get_cumulant_diffs(u + Xb[ii, ], type, 1))
+      d2 <- as.numeric(get_cumulant_diffs(u + Xb[ii, ], type, 2))
 
-    # Gradient of objective function for W[ii, ]
-    grad <- function(w){
-      w <- as.matrix(w, ncol = 1)
-      d1 <- c(get_cumulant_diffs(w, type, 1))
-      val <- -t(Y[ii, , drop = F]) + d1
-      e <- w - Xb[ii, ]
-      e <- crossprod(e_S$vectors, e)
-      e <- (pen + 1 / e_S$values) * e
-      e <- e_S$vectors %*% e
-      val <- val + e
-      return(val)
-    }
+      # Objective
+      val <-  sum(d0 - Y[ii, ] * u)
+      val <- as.numeric(val + 0.5 * crossprod(u, Sigma %*% u))
 
-    opt <- stats::optim(par = W[ii, ], fn = obj, gr = grad,
-                        method = "L-BFGS-B",
-                        control = list(factr = tol / .Machine$double.eps,
-                                maxit = maxit,
-                                trace = ifelse(quiet, 0, 6)))
-    W[ii, ] <- opt$par
-    if(opt$convergence != 0){
-      warning(paste0("w_", ii, " update did not converge with message: ",
-                     opt$message, " \n"))
+      # Gradient
+      g <- d1 - Y[ii, ]
+
+      g <- as.numeric(g + Sigma %*% u)
+
+      # Hessian (modified)
+      H <- Sigma
+      diag(H) <- diag(H) + d2 + pen
+
+      return(list(value = val, gradient = g, hessian = H))
+    }
+    opt <- trust::trust(trust_obj, W[ii, ] - Xb[ii, ], rinit = 1, rmax = 100,
+                        iterlim = maxit, fterm = tol, mterm = tol)
+
+    W[ii, ] <- opt$argument + Xb[ii, ]
+    if(!opt$converged){
+      warning(paste0("w_", ii, " update did not converge \n"))
     }
   }
   return(W)
 }
+
+update_W_same <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
+                     maxit = 100, quiet = T)
+{
+  # This update ensures u = W[ii, ] - Xb[ii, ] does not depend on i
+  # The ith contribution to objective is
+  # Y[ii, ] * u - c(u + Xb[ii, ]) - 0.5 * t(u) %*% solve(Sigma) %*% u
+
+  if(maxit <= 0) return(W) # Allows maxit[4] = 0 to skip W update
+
+  n <- nrow(Y)
+  r <- ncol(Y)
+  Xb <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = T)
+  u_start <- colMeans(W - Xb)
+
+  e_S <- eigen(Sigma)
+  e_S$values <- 1 / e_S$values # For inverse
+  e_S$values <- e_S$values + pen
+
+  # Guard against ill-conditioned Hessian
+  e_S$values <- sapply(e_S$values, min, 1 / sqrt(.Machine$double.eps))
+
+  # # Objective function for u
+  # obj <- function(u){
+  #   D0 <- t(get_cumulant_diffs(u + t(Xb), type, 0)) # Adds u to every row of Xb
+  #   val <- -mean(rowSums(sweep(Y, 2, u, FUN = "*") + D0))
+  #   e <- crossprod(e_S$vectors, u)
+  #   e <- sqrt(e_S$values) * e
+  #   val <- as.numeric(val + 0.5 * sum(e^2))
+  #   return(val)
+  # }
+  #
+  # # Gradient of objective function for u
+  # grad <- function(u){
+  #   D1 <-  t(get_cumulant_diffs(u + t(Xb), type, 1)) # Adds u to every row of Xb
+  #   val <- mean(rowSums(D1 - Y))
+  #   e <- crossprod(e_S$vectors, u)
+  #   e <- e * e_S$values
+  #   e <- e_S$vectors %*% e
+  #   val <- as.numeric(val + e)
+  #   return(val)
+  # }
+  trust_obj <- function(u){
+    D0 <- t(get_cumulant_diffs(u + t(Xb), type, 0))
+    D1 <-  t(get_cumulant_diffs(u + t(Xb), type, 1))
+    D2 <-  t(get_cumulant_diffs(u + t(Xb), type, 2))
+
+    # Objective
+    val <-  sum(colMeans(D0 - sweep(Y, 2, u, FUN = "*")))
+    e <- crossprod(e_S$vectors, u)
+    val <- as.numeric(val + 0.5 * sum((sqrt(e_S$values) * e)^2))
+
+    # Gradient
+    g <- colMeans(D1 - Y)
+    e <- e * e_S$values
+    e <- e_S$vectors %*% e
+    g <- as.numeric(g + e)
+
+    # Hessian
+    H <- e_S$vectors %*% (e_S$values * t(e_S$vectors))
+    diag(H) <- diag(H) + colMeans(D2)
+
+    return(list(value = val, gradient = g, hessian = H))
+  }
+  opt <- trust::trust(trust_obj, u_start, rinit = 1, rmax = 100,
+                      iterlim = maxit, fterm = tol, mterm = tol)
+  W <- sweep(Xb, 2, opt$argument, FUN = "+")
+  if(!opt$converged){
+    warning("w update did not converge \n")
+  }
+  return(W)
+}
+
 
 
 # -------------------------------------------------

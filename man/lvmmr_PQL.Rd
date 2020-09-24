@@ -13,6 +13,7 @@ lvmmr_PQL(
   maxit = rep(100, 4),
   quiet = rep(TRUE, 4),
   relative = TRUE,
+  same = FALSE,
   Beta,
   Sigma,
   W,
@@ -41,6 +42,9 @@ same steps as the tol vector.}
 
 \item{relative}{If TRUE, use relative decrease of parameters to determine
 convergence, otherwise use absolute.}
+
+\item{same}{If TRUE, the Taylor expansion point for the ith observation is
+W[ii, ] = u + Xb[ii, ], for an u that does not depend on i.}
 
 \item{Beta}{A p-vector with starting values for the regression coefficients.}
 

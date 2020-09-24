@@ -95,55 +95,67 @@ sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE + diag(psi_true
 # Example with mixed-type responses
 ```{r}
 set.seed(4)
-n <- 500
-type <- 2:3
+n <- 100
+type <- c(1, 2, 3)
 r <- length(type)
 
-# Each observation has one uniform predictor (SUR)
+# Each observation has an intercept and one uniform predictor (SUR)
 X <- as.matrix(Matrix::KhatriRao(matrix(runif(n * r, -1, 1), n, r),
                                  diag(1, r)))
-Beta_true <- (r:1) / r
+X <- cbind(Matrix::kronecker(rep(1, n), diag(r)), X)
+
+Beta_true <- c(1:(2 * r)) / (2 * r)
 
 # Variance parameters, psi treated as known
-Sigma_true <- 0.9^abs(outer(1:r, 1:r, FUN = "-"))
+Sigma_true <- matrix(0.9, r, r)
+diag(Sigma_true) <- 1
+Sigma_true <- 2 * Sigma_true
 psi_true <- rep(1, r) # psi \neq 1 currently not supported Ber and Poi
+psi_true[type == "1"] <- 1e-4
 
 Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
-# No restrictions with normal responses
+# No restrictions with normal and Poisson responses
 M <- matrix(NA, r, r)
-diag(M)[type == 2] <- 1 # For identifiability (try)
+diag(M)[type == 2] <- 1
 
 fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
-                           relative = T,
-                           quiet = c(F, F, F, T),
-                           maxit = c(1000, 1000, 5000, 1000),
-                           tol = c(1e-5, 1e-7, 1e-12, 1e-10),
+                           relative = FALSE,
+                           quiet = c(F, T, T, T),
+                           maxit = c(50, 100, 500, 1000),
+                           tol = c(1e-5, 1e-7, 1e-10, 1e-8),
                            psi = psi_true,
+                           same = FALSE
                            )
-# Difference to truth
-fit$Beta - Beta_true
-fit$Sigma - Sigma_true
 
 # Predict
 n_pred <- 1e4
+
 X_new <- as.matrix(Matrix::KhatriRao(matrix(runif(n_pred * r, -1, 1), n_pred, r),
                                  diag(1, r)))
+X_new <- cbind(Matrix::kronecker(rep(1, n_pred), diag(r)), X_new)
+
 Y_new <- lvmmrPQL::generate_lvmmr(X = X_new, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
-Beta_GLM <- c(
- coef(glm(Y[, 1] ~ 0 + X[seq(1, 2 * n,  by = 2), 1], family = "binomial")),
-  coef(glm(Y[, 2] ~ 0 + X[seq(2, 2 * n,  by = 2), 2], family = "poisson")))
+Beta_GLM <- matrix(0, 2, r)
+for(jj in 1:r){
+   fam <- c("gaussian", "binomial", "poisson")[type[jj]]
+   Beta_GLM[, jj] = coef(glm(Y[, jj] ~ 0 + X[seq(jj, nrow(X),  by = r),
+                                             c(jj, r + jj)], family = fam))
+}
+Beta_GLM <- c(Beta_GLM)
+
 Xb_GLM <- matrix(X_new %*% Beta_GLM, nrow = n_pred, ncol = r, byrow = T)
 pred_GLM <- t(lvmmrPQL:::get_cumulant_diffs(t(Xb_GLM), type, 1))
 
 
 # We win (sometimes and often small).
-colMeans((Y_new - lvmmrPQL::predict_lvmmr(X = X_new,
+sqrt(colMeans((Y_new - lvmmrPQL::predict_lvmmr(X = X_new,
                                           Beta = fit$Beta,
                                           sigma = sqrt(diag(fit$Sigma)),
                                           type = type,
-                                          num_nodes = 15))^2)
-colMeans((Y_new - pred_GLM)^2)
+                                          num_nodes = 15))^2))
+sqrt(colMeans((Y_new - pred_GLM)^2))
+
 ```
 

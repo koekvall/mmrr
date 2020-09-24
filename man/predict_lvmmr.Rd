@@ -13,7 +13,7 @@ for the r responses in the first independent response vector, and so on.}
 \item{Beta}{A p-vector of latent regression coefficients}
 
 \item{sigma}{An r-vector of standard deviations for the responses,
-i.e. diag(solve(Omega)).}
+i.e. sqrt(diag(Sigma)).}
 
 \item{type}{An r-vector indicating response types:
 1 means normal, 2 means Bernoulli,

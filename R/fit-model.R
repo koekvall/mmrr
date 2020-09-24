@@ -14,6 +14,8 @@
 #'   same steps as the tol vector.
 #' @param relative If TRUE, use relative decrease of parameters to determine
 #'   convergence, otherwise use absolute.
+#' @param same If TRUE, the Taylor expansion point for the ith observation is
+#'   W[ii, ] = u + Xb[ii, ], for an u that does not depend on i.
 #' @param Beta A p-vector with starting values for the regression coefficients.
 #' @param Sigma An r x r initial iterate for the latent covariance matrix.
 #' @param W An n x r initial iterate for the expansion points.
@@ -25,8 +27,8 @@
 #' @export
 #' @export
 lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
-                      quiet = rep(TRUE, 4), relative = TRUE, Beta, Sigma, W,
-                      psi = rep(1, ncol(Y)))
+                      quiet = rep(TRUE, 4), relative = TRUE, same = FALSE,
+                      Beta, Sigma, W, psi = rep(1, ncol(Y)))
 {
   # Define constants
   n <- nrow(Y)
@@ -125,9 +127,15 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
     } # End inner loop
 
     # Update W
-    W <- update_W(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
-                 psi = psi, type = type, pen = 1, tol = tol[4],
-                 maxit = maxit[4], quiet = quiet[4])
+    if(same){
+      W <- update_W_same(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
+                    psi = psi, type = type, tol = tol[4],
+                    maxit = maxit[4], quiet = quiet[4])
+    } else{
+      W <- update_W(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
+                    psi = psi, type = type, tol = tol[4],
+                    maxit = maxit[4], quiet = quiet[4])
+    }
 
     # Check whether to terminate outer loop
     # (Seems elementwise relative change could be unstable here?)

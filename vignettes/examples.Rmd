@@ -22,8 +22,8 @@ The matrix of responses, $Y$, has $n$ rows and $r$ columns. The matrix of predic
 # Example with normal responses
 ```{r}
 set.seed(4)
-n <- 500
-type <- rep(1, 5) # Only normal responses
+n <- 100
+type <- rep(1, 2) # Only normal responses
 r <- length(type)
 
 # Each observation has its own intercept
@@ -52,7 +52,7 @@ min(eigen(Sigma_MLE)$values)
 # regardless of whether algorithm finds MLE of Sigma.
 fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = T,
-                           quiet = c(F, T, T, T),
+                           quiet = c(F, F, F, F),
                            maxit = c(100, 100, 500, 0),
                            tol = c(1e-12, 1e-8, 1e-12, 1e-8),
                            psi = psi_true)
@@ -89,6 +89,10 @@ lvmmrPQL:::working_ll(Y = Y, X = X, Beta = Beta_MLE, Sigma = Sigma_MLE,
 Xb <- matrix(X %*% fit$Beta, nrow = n, ncol = r, byrow = T)
 sum(mvtnorm::dmvnorm(x = Y - Xb, sigma = fit$Sigma + diag(psi_true), log = TRUE))
 sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE + diag(psi_true), log = TRUE))
+
+
+# Test the derivatives for Sigma
+
 ```
 
 
@@ -96,7 +100,7 @@ sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE + diag(psi_true
 ```{r}
 set.seed(4)
 n <- 100
-type <- c(1, 2, 3)
+type <- c(1, 1, 2, 2, 3, 3)
 r <- length(type)
 
 # Each observation has an intercept and one uniform predictor (SUR)
@@ -110,8 +114,8 @@ Beta_true <- c(1:(2 * r)) / (2 * r)
 Sigma_true <- matrix(0.9, r, r)
 diag(Sigma_true) <- 1
 Sigma_true <- 2 * Sigma_true
-psi_true <- rep(1, r) # psi \neq 1 currently not supported Ber and Poi
-psi_true[type == "1"] <- 1e-4
+psi_true <- rep(1, r)
+psi_true[type == "2"] <- 1 # Bernoulli does not suppose psi
 
 Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
@@ -121,11 +125,12 @@ diag(M)[type == 2] <- 1
 
 fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = FALSE,
-                           quiet = c(F, T, T, T),
-                           maxit = c(50, 100, 500, 1000),
+                           quiet = c(F, F, F, T),
+                           maxit = c(50, 100, 500, 100),
                            tol = c(1e-5, 1e-7, 1e-10, 1e-8),
                            psi = psi_true,
-                           same = FALSE
+                           same = FALSE,
+                           Beta = Beta_true
                            )
 
 # Predict

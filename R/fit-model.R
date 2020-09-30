@@ -38,6 +38,12 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
   # Check that model matrix has full rank
   if(qr(X)$rank != p) warning("X does not have full column rank.")
 
+  # Check that restrictions are symmetric
+  if(!isSymmetric(M)){
+    warning("M is not symmetric, using lower half only")
+    M[upper.tri(M)] <- t(M)[upper.tri(M)]
+  }
+
   # Get starting values from GLMs if missing
   if(missing(Beta)){
     # Fit separately for every response type and use
@@ -80,41 +86,46 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
                                  Sigma = new_Sigma, W = W,
                                  psi = psi, D1 = D1, D2 = D2)
 
-      # Update Beta
-      new_Beta <- update_beta(Y = Y, X = X, W = W, Sigma = new_Sigma, psi = psi,
-                              type = type)
+      # Update Sigma
+      H <- matrix(X %*% new_Beta, nrow = n, ncol = r, byrow = T) # called Xb elsewhere
+      H <- D1 + D2 * (H - W)
+      H <- Y - H
+      new_Sigma <- update_Sigma_trust(Sigma = new_Sigma, R = H, D2 = D2,
+                                      psi = psi, M = M, use_idx = 1:n,
+                                      pen = 1e-8)
+      # new_Sigma <- update_Sigma_PQL(H = H, A =  A, B = D2,
+      #                               Sigma.init = new_Sigma,
+      #                               M = M, epsilon = 1e-8, tol.dykstra = tol[3],
+      #                               tol.ipiano = tol[3],
+      #                               max.iter.dykstra = maxit[3],
+      #                               max.iter.ipiano = maxit[3],
+      #                               quiet = quiet[3])
 
       if(!quiet[2]){
         mid_obj <-  -working_ll(Y = Y, X = X, Beta = new_Beta,
                                 Sigma = new_Sigma, W = W,
                                 psi = psi, D1 = D1, D2 = D2)
-        cat("Change from Beta update: ", mid_obj - start_obj, "\n")
+        cat("Change from Sigma update: ", mid_obj - start_obj, "\n")
         if(mid_obj - start_obj > tol[2]){
-          warning("Beta update increased objective function more than tol[2].
+          warning("Sigma update increased objective function more than tol[2].
                   \n")
         }
       }
 
-      # Update Sigma
-      H <- matrix(X %*% new_Beta, nrow = n, ncol = r, byrow = T) # called Xb elsewhere
-      H <- D1 + D2 * (H - W)
-      H <- Y - H
-      new_Sigma <- update_Sigma_PQL(H = H, A =  A, B = D2,
-                                    Sigma.init = new_Sigma,
-                                    M = M, epsilon = 1e-8, tol.dykstra = tol[3],
-                                    tol.ipiano = tol[3],
-                                    max.iter.dykstra = maxit[3],
-                                    max.iter.ipiano = maxit[3],
-                                    quiet = quiet[3])
+
+
+      # Update Beta
+      new_Beta <- update_beta(Y = Y, X = X, W = W, Sigma = new_Sigma, psi = psi,
+                              type = type)
 
       # Track progress of Beta and Sigma update
       end_obj <- -working_ll(Y = Y, X = X, Beta = new_Beta,
                                Sigma = new_Sigma, W = W,
                                psi = psi, D1 = D1, D2 = D2)
       if(!quiet[2]){
-        cat("Change from Sigma update: ", end_obj - mid_obj, "\n")
+        cat("Change from Beta update: ", end_obj - mid_obj, "\n")
         if(end_obj - mid_obj > tol[2]){
-          warning("Sigma update increased objective function more than tol[2].
+          warning("Beta update increased objective function more than tol[2].
                   \n")
         }
       }

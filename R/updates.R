@@ -284,3 +284,48 @@ update_Sigma_PQL <- function(H, A, B, Sigma.init, M, epsilon = 0, tol.dykstra = 
 
   return(Sigma)
 }
+
+update_Sigma_trust <- function(Sigma_start, R, D2, psi, M, use_idx,
+                               pen = sqrt(.Machine$double.eps))
+{
+  n <- nrow(R)
+  r <- ncol(R)
+
+  m <- matrixcalc::vech(M)
+  opt_idx <- lower.tri(M, diag = T) & is.na(M)
+
+  theta0 <- as.numeric(Sigma_start[opt_idx])
+
+  D <- matrixcalc::D.matrix(r) # This is very inefficient
+
+  obj <- function(theta){
+    Sigma <- M
+    Sigma[opt_idx] <- theta
+    Sigma[upper.tri(Sigma)] <- t(Sigma)[upper.tri(Sigma)]
+
+    v <- obj_Sigma(Sigma = Sigma, R = R, D2 = D2, psi = psi,
+                       use_idx = use_idx)
+
+    dSigma <- gradient_Sigma(Sigma = Sigma, R = R, D2 = D2, psi = psi,
+                             use_idx = use_idx)
+
+    g <- as.numeric(crossprod(D, as.numeric(dSigma)))[is.na(m)]
+
+    ddSigma <- hessian_Sigma(Sigma = Sigma, R = R, D2 = D2, psi = psi,
+                             use_idx = use_idx)
+    H <- crossprod(D, ddSigma %*% D)[is.na(m), is.na(m)]
+    return(list(value = v, gradient = g, hessian = H))
+  }
+
+    opt <- trust::trust(objfun = obj, parinit = theta0, rinit = 1, rmax = 100)
+
+    if(!opt$converged){
+      warning("Sigma update did not converge \n")
+    }
+    Sigma <- Sigma_start
+    Sigma[opt_idx] <- opt$argument
+    Sigma[!is.na(M)] <- M[!is.na(M)]
+    Sigma[upper.tri(Sigma)] <- t(Sigma)[upper.tri(Sigma)]
+
+    return(Sigma)
+}

@@ -7,8 +7,8 @@
 #'   Should be such that t(R) \%*\% R = solve(Omega).
 #' @param type An r-vector indicating response types: 1 means normal, 2 means
 #'   Bernoulli, and 3 means Poisson.
-#' @param psi Vector of variance parameters, currently only used for normal
-#'   responses.
+#' @param psi Vector of variance parameters, ignored for Bernoulli
+#'   responses. For Poisson, generates Y| W as psi * Poi(exp(W) / psi)
 #' @return An n x r matrix of responses.
 #' @export
 generate_lvmmr <- function(X, Beta, R, type, psi)
@@ -28,7 +28,7 @@ generate_lvmmr <- function(X, Beta, R, type, psi)
     } else if(type[ii] == 2){
       W[, ii] <- stats::rbinom(n, 1, 1 / (1 + exp(-W[, ii])))
     } else if(type[ii] == 3){
-      W[, ii] <- stats::rpois(n, exp(W[, ii]))
+      W[, ii] <- psi[ii] * stats::rpois(n, exp(W[, ii]) / psi[ii])
     } else{
       stop("type must be 1 (normal) , 2 (Bernoulli), or 3 (Poisson).")
     }

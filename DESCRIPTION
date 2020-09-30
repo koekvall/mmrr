@@ -8,7 +8,7 @@ Maintainer: Karl Oskar Ekvall <k.o.ekvall@gmail.com>
 Description: Fits latent variables multivariate mixed-type regression models,
   using a penalized quasi-likleihood algorithm.
 License: MIT + file LICENSE
-Imports: Rcpp (>= 1.0.0), statmod, mvtnorm
+Imports: Rcpp (>= 1.0.0), statmod, mvtnorm, trust, matrixcalc
 LinkingTo: Rcpp, RcppArmadillo
 Encoding: UTF-8
 RoxygenNote: 7.1.1

@@ -18,8 +18,8 @@ Should be such that t(R) \%*\% R = solve(Omega).}
 \item{type}{An r-vector indicating response types: 1 means normal, 2 means
 Bernoulli, and 3 means Poisson.}
 
-\item{psi}{Vector of variance parameters, currently only used for normal
-responses.}
+\item{psi}{Vector of variance parameters, ignored for Bernoulli
+responses. For Poisson, generates Y| W as psi * Poi(exp(W) / psi)}
 }
 \value{
 An n x r matrix of responses.

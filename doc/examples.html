@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Latent Variable Multivariate Mixed-type Response Regression</title>
+
+<script>// Hide empty <a> tag within highlighted CodeBlock for screen reader accessibility (see https://github.com/jgm/pandoc/issues/6352#issuecomment-626106786) -->
+// v0.0.1
+// Written by JooYoung Seo (jooyoung@psu.edu) and Atsushi Yasumoto on June 1st, 2020.
+
+document.addEventListener('DOMContentLoaded', function() {
+  const codeList = document.getElementsByClassName("sourceCode");
+  for (var i = 0; i < codeList.length; i++) {
+    var linkList = codeList[i].getElementsByTagName('a');
+    for (var j = 0; j < linkList.length; j++) {
+      if (linkList[j].innerHTML === "") {
+        linkList[j].setAttribute('aria-hidden', 'true');
+      }
+    }
+  }
+});
+</script>
+
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css" data-origin="pandoc">
+code.sourceCode > span { display: inline-block; line-height: 1.25; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Latent Variable Multivariate Mixed-type Response Regression</h1>
+
+
+
+<div id="installation" class="section level1">
+<h1>Installation</h1>
+<p>The package can be installed from GitHub, using devtools.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a>  <span class="co"># Currently private repository</span></span>
+<span id="cb1-2"><a href="#cb1-2"></a>  <span class="co"># devtools::install_github(&quot;koekvall/lvmmrPQL&quot;) </span></span></code></pre></div>
+</div>
+<div id="notation" class="section level1">
+<h1>Notation</h1>
+<p>The matrix of responses, <span class="math inline">\(Y\)</span>, has <span class="math inline">\(n\)</span> rows and <span class="math inline">\(r\)</span> columns. The matrix of predictors, <span class="math inline">\(X\)</span>, has <span class="math inline">\(nr\)</span> rows and <span class="math inline">\(p\)</span> columns; the first <span class="math inline">\(r\)</span> rows of <span class="math inline">\(X\)</span> are the design matrix for the <span class="math inline">\(r\)</span> responses in the first row of <span class="math inline">\(Y\)</span>, the next <span class="math inline">\(r\)</span> rows of <span class="math inline">\(X\)</span> are the design matrix for the second row of <span class="math inline">\(Y\)</span>, and so on. Thus, \texttt{matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE)} gives an <span class="math inline">\(n\times r\)</span> matrix whose <span class="math inline">\(i\)</span>th row is the mean of the <span class="math inline">\(i\)</span>th latent vector.</p>
+</div>
+<div id="example-with-normal-responses" class="section level1">
+<h1>Example with normal responses</h1>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a><span class="kw">set.seed</span>(<span class="dv">4</span>)</span>
+<span id="cb2-2"><a href="#cb2-2"></a>n &lt;-<span class="st"> </span><span class="dv">100</span></span>
+<span id="cb2-3"><a href="#cb2-3"></a>type &lt;-<span class="st"> </span><span class="kw">rep</span>(<span class="dv">1</span>, <span class="dv">2</span>) <span class="co"># Only normal responses</span></span>
+<span id="cb2-4"><a href="#cb2-4"></a>r &lt;-<span class="st"> </span><span class="kw">length</span>(type)</span>
+<span id="cb2-5"><a href="#cb2-5"></a></span>
+<span id="cb2-6"><a href="#cb2-6"></a><span class="co"># Each observation has its own intercept</span></span>
+<span id="cb2-7"><a href="#cb2-7"></a>X &lt;-<span class="st"> </span>Matrix<span class="op">::</span><span class="kw">kronecker</span>(<span class="kw">rep</span>(<span class="dv">1</span>, n), <span class="kw">diag</span>(r))</span>
+<span id="cb2-8"><a href="#cb2-8"></a>Beta_true &lt;-<span class="st"> </span>(<span class="dv">1</span><span class="op">:</span>r) <span class="op">/</span><span class="st"> </span>r</span>
+<span id="cb2-9"><a href="#cb2-9"></a></span>
+<span id="cb2-10"><a href="#cb2-10"></a><span class="co"># Variance parameters, psi treated as known</span></span>
+<span id="cb2-11"><a href="#cb2-11"></a>Sigma_true &lt;-<span class="st"> </span><span class="fl">0.5</span><span class="op">^</span><span class="kw">abs</span>(<span class="kw">outer</span>(<span class="dv">1</span><span class="op">:</span>r, <span class="dv">1</span><span class="op">:</span>r, <span class="dt">FUN =</span> <span class="st">&quot;-&quot;</span>))</span>
+<span id="cb2-12"><a href="#cb2-12"></a>psi_true &lt;-<span class="st"> </span><span class="kw">rep</span>(<span class="fl">0.5</span>, r)</span>
+<span id="cb2-13"><a href="#cb2-13"></a></span>
+<span id="cb2-14"><a href="#cb2-14"></a>Y &lt;-<span class="st"> </span>lvmmrPQL<span class="op">::</span><span class="kw">generate_lvmmr</span>(<span class="dt">X =</span> X, <span class="dt">Beta =</span> Beta_true, <span class="dt">R =</span> <span class="kw">chol</span>(Sigma_true),</span>
+<span id="cb2-15"><a href="#cb2-15"></a>                    <span class="dt">type =</span> type, <span class="dt">psi =</span> psi_true)</span>
+<span id="cb2-16"><a href="#cb2-16"></a><span class="co"># No restrictions with normal responses</span></span>
+<span id="cb2-17"><a href="#cb2-17"></a>M &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="ot">NA</span>, r, r)</span>
+<span id="cb2-18"><a href="#cb2-18"></a></span>
+<span id="cb2-19"><a href="#cb2-19"></a><span class="co"># Compute MLEs</span></span>
+<span id="cb2-20"><a href="#cb2-20"></a>fit_MLE &lt;-<span class="st"> </span><span class="kw">lm</span>(Y <span class="op">~</span><span class="st"> </span><span class="dv">1</span>)</span>
+<span id="cb2-21"><a href="#cb2-21"></a>Beta_MLE &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="kw">coef</span>(fit_MLE))</span>
+<span id="cb2-22"><a href="#cb2-22"></a>Sigma_MLE &lt;-<span class="st"> </span><span class="kw">crossprod</span>(<span class="kw">residuals</span>(fit_MLE)) <span class="op">/</span><span class="st"> </span>n <span class="op">-</span><span class="st"> </span><span class="kw">diag</span>(psi_true)</span>
+<span id="cb2-23"><a href="#cb2-23"></a></span>
+<span id="cb2-24"><a href="#cb2-24"></a><span class="co"># Does MLE exist? That is, is maximizer PD?</span></span>
+<span id="cb2-25"><a href="#cb2-25"></a><span class="kw">min</span>(<span class="kw">eigen</span>(Sigma_MLE)<span class="op">$</span>values)</span></code></pre></div>
+<pre><code>## [1] 0.6828132</code></pre>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a><span class="co"># Skip W update; obj. fun, does not depend on W with mult. norm. resp.</span></span>
+<span id="cb4-2"><a href="#cb4-2"></a><span class="co"># MLE of Beta does not depend on Sigma, so expect correct MLE for Beta</span></span>
+<span id="cb4-3"><a href="#cb4-3"></a><span class="co"># regardless of whether algorithm finds MLE of Sigma.</span></span>
+<span id="cb4-4"><a href="#cb4-4"></a>fit &lt;-<span class="st"> </span>lvmmrPQL<span class="op">::</span><span class="kw">lvmmr_PQL</span>(<span class="dt">Y =</span> Y, <span class="dt">X =</span> X, <span class="dt">type =</span> type, <span class="dt">M =</span> M,</span>
+<span id="cb4-5"><a href="#cb4-5"></a>                           <span class="dt">relative =</span> T,</span>
+<span id="cb4-6"><a href="#cb4-6"></a>                           <span class="dt">quiet =</span> <span class="kw">c</span>(F, T, T, T),</span>
+<span id="cb4-7"><a href="#cb4-7"></a>                           <span class="dt">maxit =</span> <span class="kw">c</span>(<span class="dv">100</span>, <span class="dv">100</span>, <span class="dv">500</span>, <span class="dv">0</span>),</span>
+<span id="cb4-8"><a href="#cb4-8"></a>                           <span class="dt">tol =</span> <span class="kw">c</span>(<span class="fl">1e-12</span>, <span class="fl">1e-8</span>, <span class="fl">1e-12</span>, <span class="fl">1e-8</span>),</span>
+<span id="cb4-9"><a href="#cb4-9"></a>                           <span class="dt">psi =</span> psi_true,</span>
+<span id="cb4-10"><a href="#cb4-10"></a>                           <span class="dt">pgd =</span> <span class="ot">TRUE</span>) <span class="co"># Fast and accurate for both pgd = T / F</span></span></code></pre></div>
+<pre><code>## Change in parameters:  918.4455 
+## Change in parameters:  1.381737e-07 
+## Change in parameters:  3.424085e-12 
+## Change in parameters:  4.829968e-16</code></pre>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a><span class="co"># Difference to MLEs</span></span>
+<span id="cb6-2"><a href="#cb6-2"></a>fit<span class="op">$</span>Beta <span class="op">-</span><span class="st"> </span>Beta_MLE</span></code></pre></div>
+<pre><code>##                             
+##  5.551115e-16 -1.110223e-15</code></pre>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1"></a>fit<span class="op">$</span>Sigma <span class="op">-</span><span class="st"> </span>Sigma_MLE</span></code></pre></div>
+<pre><code>##               [,1]          [,2]
+## [1,]  8.256303e-08 -6.656699e-09
+## [2,] -6.656699e-09 -5.752276e-08</code></pre>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1"></a><span class="co"># With MLE as starting value</span></span>
+<span id="cb10-2"><a href="#cb10-2"></a>fit &lt;-<span class="st"> </span>lvmmrPQL<span class="op">::</span><span class="kw">lvmmr_PQL</span>(<span class="dt">Y =</span> Y, <span class="dt">X =</span> X, <span class="dt">type =</span> type, <span class="dt">M =</span> M,</span>
+<span id="cb10-3"><a href="#cb10-3"></a>                           <span class="dt">relative =</span> T,</span>
+<span id="cb10-4"><a href="#cb10-4"></a>                           <span class="dt">quiet =</span> <span class="kw">c</span>(F, T, T, T),</span>
+<span id="cb10-5"><a href="#cb10-5"></a>                           <span class="dt">maxit =</span> <span class="kw">c</span>(<span class="dv">100</span>, <span class="dv">100</span>, <span class="dv">500</span>, <span class="dv">0</span>),</span>
+<span id="cb10-6"><a href="#cb10-6"></a>                           <span class="dt">tol =</span> <span class="kw">c</span>(<span class="fl">1e-12</span>, <span class="fl">1e-8</span>, <span class="fl">1e-12</span>, <span class="fl">1e-8</span>),</span>
+<span id="cb10-7"><a href="#cb10-7"></a>                           <span class="dt">pgd =</span> <span class="ot">FALSE</span>,</span>
+<span id="cb10-8"><a href="#cb10-8"></a>                           <span class="dt">Beta =</span> Beta_MLE,</span>
+<span id="cb10-9"><a href="#cb10-9"></a>                           <span class="dt">Sigma =</span> Sigma_MLE,</span>
+<span id="cb10-10"><a href="#cb10-10"></a>                           <span class="dt">psi =</span> psi_true)</span></code></pre></div>
+<pre><code>## Change in parameters:  1.207492e-16</code></pre>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1"></a>fit<span class="op">$</span>iter</span></code></pre></div>
+<pre><code>## [1] 1</code></pre>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a><span class="co"># Difference to MLEs</span></span>
+<span id="cb14-2"><a href="#cb14-2"></a>fit<span class="op">$</span>Beta <span class="op">-</span><span class="st"> </span>Beta_MLE</span></code></pre></div>
+<pre><code>##                           
+## 1.110223e-16 0.000000e+00</code></pre>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1"></a>fit<span class="op">$</span>Sigma <span class="op">-</span><span class="st"> </span>Sigma_MLE</span></code></pre></div>
+<pre><code>##               [,1]          [,2]
+## [1,]  0.000000e+00 -1.110223e-16
+## [2,] -1.110223e-16  0.000000e+00</code></pre>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1"></a><span class="co"># See that objective is correct</span></span>
+<span id="cb18-2"><a href="#cb18-2"></a>D1 &lt;-<span class="st"> </span><span class="kw">t</span>(lvmmrPQL<span class="op">:::</span><span class="kw">get_cumulant_diffs</span>(<span class="kw">t</span>(fit<span class="op">$</span>W), type, <span class="dv">1</span>))</span>
+<span id="cb18-3"><a href="#cb18-3"></a>D2 &lt;-<span class="st"> </span><span class="kw">t</span>(lvmmrPQL<span class="op">:::</span><span class="kw">get_cumulant_diffs</span>(<span class="kw">t</span>(fit<span class="op">$</span>W), type, <span class="dv">2</span>))</span>
+<span id="cb18-4"><a href="#cb18-4"></a></span>
+<span id="cb18-5"><a href="#cb18-5"></a>lvmmrPQL<span class="op">:::</span><span class="kw">working_ll_rcpp</span>(<span class="dt">Y_T =</span> <span class="kw">t</span>(Y), <span class="dt">X_T =</span> <span class="kw">t</span>(X), <span class="dt">beta =</span> fit<span class="op">$</span>Beta,</span>
+<span id="cb18-6"><a href="#cb18-6"></a>                                  <span class="dt">Sigma =</span> fit<span class="op">$</span>Sigma, <span class="dt">W_T =</span> <span class="kw">t</span>(fit<span class="op">$</span>W), <span class="dt">psi =</span> psi_true,</span>
+<span id="cb18-7"><a href="#cb18-7"></a>                                  <span class="dt">D1_T =</span> <span class="kw">t</span>(D1), <span class="dt">D2_T =</span> <span class="kw">t</span>(D2))</span></code></pre></div>
+<pre><code>## [1] -313.1999</code></pre>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1"></a>lvmmrPQL<span class="op">:::</span><span class="kw">working_ll_rcpp</span>(<span class="dt">Y_T =</span> <span class="kw">t</span>(Y), <span class="dt">X_T =</span> <span class="kw">t</span>(X), <span class="dt">beta =</span> Beta_MLE,</span>
+<span id="cb20-2"><a href="#cb20-2"></a>                                  <span class="dt">Sigma =</span> Sigma_MLE, <span class="dt">W_T =</span> <span class="kw">t</span>(fit<span class="op">$</span>W), <span class="dt">psi =</span> psi_true,</span>
+<span id="cb20-3"><a href="#cb20-3"></a>                                  <span class="dt">D1_T =</span> <span class="kw">t</span>(D1), <span class="dt">D2_T =</span> <span class="kw">t</span>(D2))</span></code></pre></div>
+<pre><code>## [1] -313.1999</code></pre>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1"></a><span class="co"># Double check w. multivariate normal likelihood</span></span>
+<span id="cb22-2"><a href="#cb22-2"></a>Xb &lt;-<span class="st"> </span><span class="kw">matrix</span>(X <span class="op">%*%</span><span class="st"> </span>fit<span class="op">$</span>Beta, <span class="dt">nrow =</span> n, <span class="dt">ncol =</span> r, <span class="dt">byrow =</span> T)</span>
+<span id="cb22-3"><a href="#cb22-3"></a><span class="kw">sum</span>(mvtnorm<span class="op">::</span><span class="kw">dmvnorm</span>(<span class="dt">x =</span> Y <span class="op">-</span><span class="st"> </span>Xb, <span class="dt">sigma =</span> fit<span class="op">$</span>Sigma <span class="op">+</span><span class="st"> </span><span class="kw">diag</span>(psi_true), <span class="dt">log =</span> <span class="ot">TRUE</span>))</span></code></pre></div>
+<pre><code>## [1] -313.1999</code></pre>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1"></a><span class="kw">sum</span>(mvtnorm<span class="op">::</span><span class="kw">dmvnorm</span>(<span class="dt">x =</span> Y <span class="op">-</span><span class="st"> </span><span class="kw">predict</span>(fit_MLE), <span class="dt">sigma =</span> Sigma_MLE <span class="op">+</span><span class="st"> </span><span class="kw">diag</span>(psi_true), <span class="dt">log =</span> <span class="ot">TRUE</span>))</span></code></pre></div>
+<pre><code>## [1] -313.1999</code></pre>
+</div>
+<div id="example-with-mixed-type-responses" class="section level1">
+<h1>Example with mixed-type responses</h1>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1"></a><span class="kw">set.seed</span>(<span class="dv">4</span>)</span>
+<span id="cb26-2"><a href="#cb26-2"></a>n &lt;-<span class="st"> </span><span class="dv">1000</span></span>
+<span id="cb26-3"><a href="#cb26-3"></a>type &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">3</span>)</span>
+<span id="cb26-4"><a href="#cb26-4"></a>r &lt;-<span class="st"> </span><span class="kw">length</span>(type)</span>
+<span id="cb26-5"><a href="#cb26-5"></a></span>
+<span id="cb26-6"><a href="#cb26-6"></a><span class="co"># Each observation has an intercept and one uniform predictor (SUR)</span></span>
+<span id="cb26-7"><a href="#cb26-7"></a>X &lt;-<span class="st"> </span><span class="kw">as.matrix</span>(Matrix<span class="op">::</span><span class="kw">KhatriRao</span>(<span class="kw">matrix</span>(<span class="kw">runif</span>(n <span class="op">*</span><span class="st"> </span>r, <span class="dv">-1</span>, <span class="dv">1</span>), n, r),</span>
+<span id="cb26-8"><a href="#cb26-8"></a>                                 <span class="kw">diag</span>(<span class="dv">1</span>, r)))</span>
+<span id="cb26-9"><a href="#cb26-9"></a>X &lt;-<span class="st"> </span><span class="kw">cbind</span>(Matrix<span class="op">::</span><span class="kw">kronecker</span>(<span class="kw">rep</span>(<span class="dv">1</span>, n), <span class="kw">diag</span>(r)), X)</span>
+<span id="cb26-10"><a href="#cb26-10"></a></span>
+<span id="cb26-11"><a href="#cb26-11"></a>Beta_true &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">1</span><span class="op">:</span>(<span class="dv">2</span> <span class="op">*</span><span class="st"> </span>r)) <span class="op">/</span><span class="st"> </span>(<span class="dv">2</span> <span class="op">*</span><span class="st"> </span>r)</span>
+<span id="cb26-12"><a href="#cb26-12"></a></span>
+<span id="cb26-13"><a href="#cb26-13"></a><span class="co"># Variance parameters, psi treated as known</span></span>
+<span id="cb26-14"><a href="#cb26-14"></a>Sigma_true &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="fl">0.9</span>, r, r)</span>
+<span id="cb26-15"><a href="#cb26-15"></a><span class="kw">diag</span>(Sigma_true) &lt;-<span class="st"> </span><span class="dv">1</span></span>
+<span id="cb26-16"><a href="#cb26-16"></a>psi_true &lt;-<span class="st"> </span><span class="kw">rep</span>(<span class="dv">1</span>, r)</span>
+<span id="cb26-17"><a href="#cb26-17"></a>psi_true[type <span class="op">==</span><span class="st"> &quot;2&quot;</span>] &lt;-<span class="st"> </span><span class="dv">1</span> <span class="co"># Bernoulli does not suppose psi</span></span>
+<span id="cb26-18"><a href="#cb26-18"></a></span>
+<span id="cb26-19"><a href="#cb26-19"></a>Y &lt;-<span class="st"> </span>lvmmrPQL<span class="op">::</span><span class="kw">generate_lvmmr</span>(<span class="dt">X =</span> X, <span class="dt">Beta =</span> Beta_true, <span class="dt">R =</span> <span class="kw">chol</span>(Sigma_true),</span>
+<span id="cb26-20"><a href="#cb26-20"></a>                    <span class="dt">type =</span> type, <span class="dt">psi =</span> psi_true)</span>
+<span id="cb26-21"><a href="#cb26-21"></a><span class="co"># No restrictions with normal and Poisson responses</span></span>
+<span id="cb26-22"><a href="#cb26-22"></a>M &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="ot">NA</span>, r, r)</span>
+<span id="cb26-23"><a href="#cb26-23"></a><span class="kw">diag</span>(M)[type <span class="op">==</span><span class="st"> </span><span class="dv">2</span>] &lt;-<span class="st"> </span><span class="dv">1</span></span>
+<span id="cb26-24"><a href="#cb26-24"></a></span>
+<span id="cb26-25"><a href="#cb26-25"></a></span>
+<span id="cb26-26"><a href="#cb26-26"></a></span>
+<span id="cb26-27"><a href="#cb26-27"></a>fit_trust &lt;-<span class="st"> </span>lvmmrPQL<span class="op">::</span><span class="kw">lvmmr_PQL</span>(<span class="dt">Y =</span> Y, <span class="dt">X =</span> X, <span class="dt">type =</span> type, <span class="dt">M =</span> M,</span>
+<span id="cb26-28"><a href="#cb26-28"></a>                           <span class="dt">relative =</span> <span class="ot">FALSE</span>,</span>
+<span id="cb26-29"><a href="#cb26-29"></a>                           <span class="dt">quiet =</span> <span class="kw">c</span>(F, T, T, T),</span>
+<span id="cb26-30"><a href="#cb26-30"></a>                           <span class="dt">maxit =</span> <span class="kw">c</span>(<span class="dv">50</span>, <span class="dv">100</span>, <span class="dv">500</span>, <span class="dv">100</span>),</span>
+<span id="cb26-31"><a href="#cb26-31"></a>                           <span class="dt">tol =</span> <span class="kw">c</span>(<span class="fl">1e-5</span>, <span class="fl">1e-7</span>, <span class="fl">1e-10</span>, <span class="fl">1e-8</span>),</span>
+<span id="cb26-32"><a href="#cb26-32"></a>                           <span class="dt">psi =</span> psi_true,</span>
+<span id="cb26-33"><a href="#cb26-33"></a>                           <span class="dt">pgd =</span> <span class="ot">FALSE</span>,</span>
+<span id="cb26-34"><a href="#cb26-34"></a>                           <span class="dt">Beta =</span> Beta_true)</span></code></pre></div>
+<pre><code>## Change in parameters:  4.377447 
+## Change in parameters:  3.771977 
+## Change in parameters:  0.1269841 
+## Change in parameters:  0.06062333 
+## Change in parameters:  0.006096987 
+## Change in parameters:  0.001164503 
+## Change in parameters:  0.000301941 
+## Change in parameters:  1.260033e-05 
+## Change in parameters:  8.549044e-06</code></pre>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1"></a><span class="co"># Use starting values</span></span>
+<span id="cb28-2"><a href="#cb28-2"></a>fit_pgd &lt;-<span class="st"> </span>lvmmrPQL<span class="op">::</span><span class="kw">lvmmr_PQL</span>(<span class="dt">Y =</span> Y, <span class="dt">X =</span> X, <span class="dt">type =</span> type, <span class="dt">M =</span> M,</span>
+<span id="cb28-3"><a href="#cb28-3"></a>                           <span class="dt">relative =</span> <span class="ot">FALSE</span>,</span>
+<span id="cb28-4"><a href="#cb28-4"></a>                           <span class="dt">quiet =</span> <span class="kw">c</span>(F, T, T, T),</span>
+<span id="cb28-5"><a href="#cb28-5"></a>                           <span class="dt">maxit =</span> <span class="kw">c</span>(<span class="dv">50</span>, <span class="dv">100</span>, <span class="dv">500</span>, <span class="dv">100</span>),</span>
+<span id="cb28-6"><a href="#cb28-6"></a>                           <span class="dt">tol =</span> <span class="kw">c</span>(<span class="fl">1e-5</span>, <span class="fl">1e-7</span>, <span class="fl">1e-10</span>, <span class="fl">1e-8</span>),</span>
+<span id="cb28-7"><a href="#cb28-7"></a>                           <span class="dt">psi =</span> psi_true,</span>
+<span id="cb28-8"><a href="#cb28-8"></a>                           <span class="dt">pgd =</span> <span class="ot">TRUE</span>,</span>
+<span id="cb28-9"><a href="#cb28-9"></a>                           <span class="dt">Beta =</span> fit_trust<span class="op">$</span>Beta,</span>
+<span id="cb28-10"><a href="#cb28-10"></a>                           <span class="dt">Sigma =</span> fit_trust<span class="op">$</span>Sigma,</span>
+<span id="cb28-11"><a href="#cb28-11"></a>                           <span class="dt">W =</span> fit_trust<span class="op">$</span>W)</span></code></pre></div>
+<pre><code>## Change in parameters:  0.04735362 
+## Change in parameters:  0.001653916 
+## Change in parameters:  0.0005094483 
+## Change in parameters:  2.213558e-05 
+## Change in parameters:  6.681294e-05 
+## Change in parameters:  5.035126e-06</code></pre>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1"></a><span class="co"># Predict</span></span>
+<span id="cb30-2"><a href="#cb30-2"></a>n_pred &lt;-<span class="st"> </span><span class="fl">1e4</span></span>
+<span id="cb30-3"><a href="#cb30-3"></a></span>
+<span id="cb30-4"><a href="#cb30-4"></a>X_new &lt;-<span class="st"> </span><span class="kw">as.matrix</span>(Matrix<span class="op">::</span><span class="kw">KhatriRao</span>(<span class="kw">matrix</span>(<span class="kw">runif</span>(n_pred <span class="op">*</span><span class="st"> </span>r, <span class="dv">-1</span>, <span class="dv">1</span>), n_pred, r),</span>
+<span id="cb30-5"><a href="#cb30-5"></a>                                 <span class="kw">diag</span>(<span class="dv">1</span>, r)))</span>
+<span id="cb30-6"><a href="#cb30-6"></a>X_new &lt;-<span class="st"> </span><span class="kw">cbind</span>(Matrix<span class="op">::</span><span class="kw">kronecker</span>(<span class="kw">rep</span>(<span class="dv">1</span>, n_pred), <span class="kw">diag</span>(r)), X_new)</span>
+<span id="cb30-7"><a href="#cb30-7"></a></span>
+<span id="cb30-8"><a href="#cb30-8"></a>Y_new &lt;-<span class="st"> </span>lvmmrPQL<span class="op">::</span><span class="kw">generate_lvmmr</span>(<span class="dt">X =</span> X_new, <span class="dt">Beta =</span> Beta_true, <span class="dt">R =</span> <span class="kw">chol</span>(Sigma_true),</span>
+<span id="cb30-9"><a href="#cb30-9"></a>                    <span class="dt">type =</span> type, <span class="dt">psi =</span> psi_true)</span>
+<span id="cb30-10"><a href="#cb30-10"></a>Beta_GLM &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="dv">0</span>, <span class="dv">2</span>, r)</span>
+<span id="cb30-11"><a href="#cb30-11"></a><span class="cf">for</span>(jj <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span>r){</span>
+<span id="cb30-12"><a href="#cb30-12"></a>   fam &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;gaussian&quot;</span>, <span class="st">&quot;binomial&quot;</span>, <span class="st">&quot;poisson&quot;</span>)[type[jj]]</span>
+<span id="cb30-13"><a href="#cb30-13"></a>   Beta_GLM[, jj] =<span class="st"> </span><span class="kw">coef</span>(<span class="kw">glm</span>(Y[, jj] <span class="op">~</span><span class="st"> </span><span class="dv">0</span> <span class="op">+</span><span class="st"> </span>X[<span class="kw">seq</span>(jj, <span class="kw">nrow</span>(X),  <span class="dt">by =</span> r),</span>
+<span id="cb30-14"><a href="#cb30-14"></a>                                             <span class="kw">c</span>(jj, r <span class="op">+</span><span class="st"> </span>jj)], <span class="dt">family =</span> fam))</span>
+<span id="cb30-15"><a href="#cb30-15"></a>}</span>
+<span id="cb30-16"><a href="#cb30-16"></a>Beta_GLM &lt;-<span class="st"> </span><span class="kw">c</span>(Beta_GLM)</span>
+<span id="cb30-17"><a href="#cb30-17"></a></span>
+<span id="cb30-18"><a href="#cb30-18"></a>Xb_GLM &lt;-<span class="st"> </span><span class="kw">matrix</span>(X_new <span class="op">%*%</span><span class="st"> </span>Beta_GLM, <span class="dt">nrow =</span> n_pred, <span class="dt">ncol =</span> r, <span class="dt">byrow =</span> T)</span>
+<span id="cb30-19"><a href="#cb30-19"></a>pred_GLM &lt;-<span class="st"> </span><span class="kw">t</span>(lvmmrPQL<span class="op">:::</span><span class="kw">get_cumulant_diffs</span>(<span class="kw">t</span>(Xb_GLM), type, <span class="dv">1</span>))</span>
+<span id="cb30-20"><a href="#cb30-20"></a></span>
+<span id="cb30-21"><a href="#cb30-21"></a></span>
+<span id="cb30-22"><a href="#cb30-22"></a><span class="co"># We win (sometimes and often small).</span></span>
+<span id="cb30-23"><a href="#cb30-23"></a>RMSE &lt;-<span class="st"> </span><span class="kw">rbind</span>(<span class="kw">sqrt</span>(<span class="kw">colMeans</span>((Y_new <span class="op">-</span><span class="st"> </span>lvmmrPQL<span class="op">::</span><span class="kw">predict_lvmmr</span>(<span class="dt">X =</span> X_new,</span>
+<span id="cb30-24"><a href="#cb30-24"></a>                                          <span class="dt">Beta =</span> fit_trust<span class="op">$</span>Beta,</span>
+<span id="cb30-25"><a href="#cb30-25"></a>                                          <span class="dt">sigma =</span> <span class="kw">sqrt</span>(<span class="kw">diag</span>(fit_trust<span class="op">$</span>Sigma)),</span>
+<span id="cb30-26"><a href="#cb30-26"></a>                                          <span class="dt">type =</span> type,</span>
+<span id="cb30-27"><a href="#cb30-27"></a>                                          <span class="dt">num_nodes =</span> <span class="dv">15</span>))<span class="op">^</span><span class="dv">2</span>)),</span>
+<span id="cb30-28"><a href="#cb30-28"></a>      <span class="kw">sqrt</span>(<span class="kw">colMeans</span>((Y_new <span class="op">-</span><span class="st"> </span>lvmmrPQL<span class="op">::</span><span class="kw">predict_lvmmr</span>(<span class="dt">X =</span> X_new,</span>
+<span id="cb30-29"><a href="#cb30-29"></a>                                          <span class="dt">Beta =</span> fit_pgd<span class="op">$</span>Beta,</span>
+<span id="cb30-30"><a href="#cb30-30"></a>                                          <span class="dt">sigma =</span> <span class="kw">sqrt</span>(<span class="kw">diag</span>(fit_pgd<span class="op">$</span>Sigma)),</span>
+<span id="cb30-31"><a href="#cb30-31"></a>                                          <span class="dt">type =</span> type,</span>
+<span id="cb30-32"><a href="#cb30-32"></a>                                          <span class="dt">num_nodes =</span> <span class="dv">15</span>))<span class="op">^</span><span class="dv">2</span>)),</span>
+<span id="cb30-33"><a href="#cb30-33"></a><span class="kw">sqrt</span>(<span class="kw">colMeans</span>((Y_new <span class="op">-</span><span class="st"> </span>pred_GLM)<span class="op">^</span><span class="dv">2</span>)))</span>
+<span id="cb30-34"><a href="#cb30-34"></a><span class="kw">rownames</span>(RMSE) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;Trust region&quot;</span>, <span class="st">&quot;PGD&quot;</span>, <span class="st">&quot;GLM&quot;</span>)</span>
+<span id="cb30-35"><a href="#cb30-35"></a>RMSE</span></code></pre></div>
+<pre><code>##                  [,1]     [,2]      [,3]      [,4]     [,5]     [,6]
+## Trust region 1.413051 1.410204 0.4906523 0.4870166 4.574856 4.930073
+## PGD          1.413054 1.410197 0.4906320 0.4870176 4.573034 4.928758
+## GLM          1.425876 1.447995 0.4920662 0.4942357 4.832948 5.061954</code></pre>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

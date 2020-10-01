@@ -13,7 +13,6 @@ vignette: >
 The package can be installed from GitHub, using devtools.
 
 ```{r}
-  # Currently private repository
   # devtools::install_github("koekvall/lvmmrPQL") 
 ```
 

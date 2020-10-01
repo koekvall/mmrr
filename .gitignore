@@ -83,3 +83,5 @@ vignettes/*.pdf
 # End of https://www.toptal.com/developers/gitignore/api/c++,r
 
 *.DS_Store
+doc
+Meta

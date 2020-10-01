@@ -52,10 +52,11 @@ min(eigen(Sigma_MLE)$values)
 # regardless of whether algorithm finds MLE of Sigma.
 fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = T,
-                           quiet = c(F, F, F, F),
+                           quiet = c(F, T, T, T),
                            maxit = c(100, 100, 500, 0),
                            tol = c(1e-12, 1e-8, 1e-12, 1e-8),
-                           psi = psi_true)
+                           psi = psi_true,
+                           pgd = TRUE) # Fast and accurate for both pgd = T / F
 # Difference to MLEs
 fit$Beta - Beta_MLE
 fit$Sigma - Sigma_MLE
@@ -67,6 +68,7 @@ fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            quiet = c(F, T, T, T),
                            maxit = c(100, 100, 500, 0),
                            tol = c(1e-12, 1e-8, 1e-12, 1e-8),
+                           pgd = FALSE,
                            Beta = Beta_MLE,
                            Sigma = Sigma_MLE,
                            psi = psi_true)
@@ -93,15 +95,13 @@ sum(mvtnorm::dmvnorm(x = Y - Xb, sigma = fit$Sigma + diag(psi_true), log = TRUE)
 sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE + diag(psi_true), log = TRUE))
 
 
-# Test the derivatives for Sigma
-
 ```
 
 
 # Example with mixed-type responses
 ```{r}
 set.seed(4)
-n <- 100
+n <- 500
 type <- c(1, 1, 2, 2, 3, 3)
 r <- length(type)
 
@@ -125,15 +125,27 @@ Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
 M <- matrix(NA, r, r)
 diag(M)[type == 2] <- 1
 
-fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+
+
+fit_trust <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = FALSE,
-                           quiet = c(F, F, F, T),
+                           quiet = c(F, T, T, T),
                            maxit = c(50, 100, 500, 100),
                            tol = c(1e-5, 1e-7, 1e-10, 1e-8),
                            psi = psi_true,
-                           same = FALSE,
-                           Beta = Beta_true
-                           )
+                           pgd = FALSE,
+                           Beta = Beta_true)
+# Use starting values
+fit_pgd <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+                           relative = FALSE,
+                           quiet = c(F, T, T, T),
+                           maxit = c(50, 100, 500, 100),
+                           tol = c(1e-5, 1e-7, 1e-10, 1e-8),
+                           psi = psi_true,
+                           pgd = TRUE,
+                           Beta = fit_trust$Beta,
+                           Sigma = fit_trust$Sigma,
+                           W = fit_trust$W)
 
 # Predict
 n_pred <- 1e4
@@ -157,12 +169,18 @@ pred_GLM <- t(lvmmrPQL:::get_cumulant_diffs(t(Xb_GLM), type, 1))
 
 
 # We win (sometimes and often small).
-sqrt(colMeans((Y_new - lvmmrPQL::predict_lvmmr(X = X_new,
-                                          Beta = fit$Beta,
-                                          sigma = sqrt(diag(fit$Sigma)),
+RMSE <- rbind(sqrt(colMeans((Y_new - lvmmrPQL::predict_lvmmr(X = X_new,
+                                          Beta = fit_trust$Beta,
+                                          sigma = sqrt(diag(fit_trust$Sigma)),
                                           type = type,
-                                          num_nodes = 15))^2))
-sqrt(colMeans((Y_new - pred_GLM)^2))
-
+                                          num_nodes = 15))^2)),
+      sqrt(colMeans((Y_new - lvmmrPQL::predict_lvmmr(X = X_new,
+                                          Beta = fit_pgd$Beta,
+                                          sigma = sqrt(diag(fit_pgd$Sigma)),
+                                          type = type,
+                                          num_nodes = 15))^2)),
+sqrt(colMeans((Y_new - pred_GLM)^2)))
+rownames(RMSE) <- c("Trust region", "PGD", "GLM")
+RMSE
 ```
 

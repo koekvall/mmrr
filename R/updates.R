@@ -71,6 +71,7 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
 
       # Hessian (modified)
       H <- Sigma
+
       diag(H) <- diag(H) + d2 + pen
 
       return(list(value = val, gradient = g, hessian = H))
@@ -86,97 +87,34 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
   return(W)
 }
 
-
-# -------------------------------------------------
-# ipiano alg for covariance update with M
-# -------------------------------------------------
-# H: n x r matrix with ith row being the mean for ith subject
-# A: n x r matrix with ith row being Psi-nabla^2 c(w)i
-# B: n x r matrix with ith row being nabla^2 c(w)_i
-# Sigma.init: initial value for Sigma (e.g., previous iteration)
-# M: r x r matrix with constraints -- NA means unconstrained, non-NA gives constrained value
-# epsilon: lower bound on Sigma eigenvalues (zero by default)
-# tol.dykstra: tolerance for projection algorithm
-# tol.ipiano: tolerance for projected gradient descent algorithm
-# -
-update_Sigma_PQL <- function(H, A, B, Sigma.init, M, epsilon = 0, tol.dykstra = 1e-12, tol.ipiano = 1e-10,
-                             max.iter.dykstra = 1e3, max.iter.ipiano = 1e3, quiet=TRUE){
-
-  CorrelationProjection <- function(input, M = M, epsilon = epsilon, tol = tol.dykstra, max.iter = max.iter.dykstra){
-
-    eval.objective <- function(X, input){
-      return(0.5*sum((X - input)^2))
-    }
-    # -----------------------------------------------
-    # Dykstra algorithm for alternating projections
-    # ----------------------------------------------
-    Xkm1 <- input
-    Pkm1 <- matrix(0, nrow=nrow(input), ncol=ncol(input))
-    Qkm1 <- Pkm1
-    obj.old <- 0
-
-    for(kk in 1:max.iter){
-
-      # -----------------------
-      # Project onto M
-      # -----------------------
-      Ykm1 <- Xkm1 + Pkm1
-      Ykm1[!is.na(M)] <- M[!is.na(M)]
-      Pk <- Xkm1 + Pkm1 - Ykm1
-      eo <- eigen(Ykm1 + Qkm1)
-      Xk <- tcrossprod(eo$vec*(rep(1, nrow(input))%*%t(pmax(eo$val, epsilon))),
-                       eo$vec)
-      Qk <- Ykm1 + Qkm1 - Xk
-      obj.new <- eval.objective(Xk, input)
-      #cat(obj.new, "\n")
-      if(abs(obj.new - obj.old) < tol){
-        break
-      }
-      Xkm1 <- Xk
-      Pkm1 <- Pk
-      Qkm1 <- Qk
-
-      obj.old <- obj.new
-    }
-    #Xk[!is.na(M)] <- Xk[!is.na(M)]
-    return(Xk)
-  }
-
-  # -----------------------------------------
-  # Projected gradient descent
-  # -----------------------------------------
-  getGrad <- function(H, A, B, Sigma){
-    n <- dim(H)[1]
-    out <- matrix(0, nrow=nrow(Sigma), ncol=ncol(Sigma))
-    r <- nrow(Sigma)
-    for(k in 1:n){
-      Omega <- chol2inv(chol(diag(A[k,]) + tcrossprod(B[k,])*Sigma))
-      out <- out + tcrossprod(B[k,])*crossprod(Omega, diag(1, r) - tcrossprod(H[k,])%*%Omega)
-    }
-    return(out)
-  }
-
-  evalObj <- function(H, A, B, Sigma){
-    out <- 0
-    n <- dim(H)[1]
-    for(k in 1:n){
-      Omega <- chol2inv(chol(diag(A[k,]) + tcrossprod(B[k,])*Sigma))
-      out <- out + tcrossprod(crossprod(H[k,],Omega), H[k,]) - determinant(Omega, logarithm=TRUE)$modulus[1]
-    }
-    return(out)
-  }
-
+update_Sigma_proj <- function(R, D2, psi, Sigma.init, M, epsilon = 0,
+                              tol.dykstra = 1e-12, tol.ipiano = 1e-10,
+                              max.iter.dykstra = 1e3, max.iter.ipiano = 1e3,
+                              quiet = TRUE)
+{
   Sigmakm1 <- Sigma.init
   Sigma <- Sigma.init
   L0 <- 2
   delta <- 1e-4
   c2 <- 1e-6
-  obj.prev <- evalObj(H, A, B, Sigma)
+  # obj.prev <- evalObj(H, A, B, Sigma)
+  obj.prev <- obj_sigma_rcpp(Sigma= Sigma,
+                             R_T = t(R),
+                             D2_T = t(D2),
+                             psi = psi,
+                             use_idx = 1:nrow(R),
+                             order = 0)$value
   obj.orig <- obj.prev
 
   for(kk in 1:max.iter.ipiano){
 
-    tempGrad <- getGrad(H, A, B, Sigma)
+    #tempGrad <- getGrad(H, A, B, Sigma)
+    tempGrad <- obj_sigma_rcpp(Sigma = Sigma,
+                              R_T = t(R),
+                              D2_T = t(D2),
+                              psi = psi,
+                              use_idx = 1:nrow(R),
+                              order = 1)$gradient
     Ln <- L0
     linesearch <- TRUE
 
@@ -189,15 +127,26 @@ update_Sigma_PQL <- function(H, A, B, Sigma.init, M, epsilon = 0, tol.dykstra = 
       Bn <- .95
       alpha <- 1.9*(1 - Bn)/Ln
       temp <- Sigma - alpha*tempGrad + Bn*(Sigma - Sigmakm1)
-      Sigma.temp <- CorrelationProjection(temp, M = M, epsilon= epsilon)
-      obj.temp <- evalObj(H, A, B, Sigma.temp)
+      #Sigma.temp <- CorrelationProjection(temp, M = M, epsilon= epsilon)
+      Sigma.temp <- project_rcpp(X = temp,
+                                 restr_idx = which(c(!is.na(M))),
+                                 restr = as.numeric(M[!is.na(M)]),
+                                 eps = epsilon,
+                                 tol = tol.dykstra,
+                                 maxit = max.iter.dykstra)
+      # obj.temp <- evalObj(H, A, B, Sigma.temp)
+      obj.temp <- obj_sigma_rcpp(Sigma = Sigma.temp,
+                                 R_T = t(R),
+                                 D2_T = t(D2),
+                                 psi = psi,
+                                 use_idx = 1:nrow(R),
+                                 order = 0)$value
       if(obj.temp < obj.prev + sum(tempGrad*t(Sigma.temp - Sigma)) + (Ln/2)*sum((Sigma.temp - Sigma)^2)){
         Sigmakm1 <- Sigma
         Sigma <- Sigma.temp
         linesearch <- FALSE
       } else {
         Ln <- Ln*5
-        # cat("decreasing Ln", "\n")
       }
     }
 

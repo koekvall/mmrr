@@ -9,6 +9,10 @@ working_ll_rcpp <- function(Y_T, X_T, beta, Sigma, W_T, psi, D1_T, D2_T) {
     .Call(`_lvmmrPQL_working_ll_rcpp`, Y_T, X_T, beta, Sigma, W_T, psi, D1_T, D2_T)
 }
 
+project_rcpp <- function(X, restr_idx, restr, eps, tol, maxit) {
+    .Call(`_lvmmrPQL_project_rcpp`, X, restr_idx, restr, eps, tol, maxit)
+}
+
 obj_sigma_rcpp <- function(Sigma, R_T, D2_T, psi, use_idx, order) {
     .Call(`_lvmmrPQL_obj_sigma_rcpp`, Sigma, R_T, D2_T, psi, use_idx, order)
 }

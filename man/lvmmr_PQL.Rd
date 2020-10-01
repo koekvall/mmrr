@@ -13,11 +13,12 @@ lvmmr_PQL(
   maxit = rep(100, 4),
   quiet = rep(TRUE, 4),
   relative = TRUE,
-  same = FALSE,
+  pgd = FALSE,
   Beta,
   Sigma,
   W,
-  psi = rep(1, ncol(Y))
+  psi = rep(1, ncol(Y)),
+  w_pen
 )
 }
 \arguments{
@@ -43,7 +44,7 @@ same steps as the tol vector.}
 \item{relative}{If TRUE, use relative decrease of parameters to determine
 convergence, otherwise use absolute.}
 
-\item{same}{If TRUE, the Taylor expansion point for the ith observation is
+\item{pgd}{If TRUE, use projected gradient descent; gives PD Sigma estimate.
 W[ii, ] = u + Xb[ii, ], for an u that does not depend on i.}
 
 \item{Beta}{A p-vector with starting values for the regression coefficients.}
@@ -53,6 +54,9 @@ W[ii, ] = u + Xb[ii, ], for an u that does not depend on i.}
 \item{W}{An n x r initial iterate for the expansion points.}
 
 \item{psi}{An r-vector of variance parameters.}
+
+\item{w_pen}{Ridge penalty in W update; often useful to avoid overflows.
+Defaults to largest eigenvalue of current Sigma iterate.}
 }
 \value{
 A list of final iterates

@@ -37,6 +37,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// project_rcpp
+arma::mat project_rcpp(arma::mat X, const arma::uvec restr_idx, const arma::vec restr, const double eps, const double tol, uint maxit);
+RcppExport SEXP _lvmmrPQL_project_rcpp(SEXP XSEXP, SEXP restr_idxSEXP, SEXP restrSEXP, SEXP epsSEXP, SEXP tolSEXP, SEXP maxitSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::uvec >::type restr_idx(restr_idxSEXP);
+    Rcpp::traits::input_parameter< const arma::vec >::type restr(restrSEXP);
+    Rcpp::traits::input_parameter< const double >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< const double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< uint >::type maxit(maxitSEXP);
+    rcpp_result_gen = Rcpp::wrap(project_rcpp(X, restr_idx, restr, eps, tol, maxit));
+    return rcpp_result_gen;
+END_RCPP
+}
 // obj_sigma_rcpp
 Rcpp::List obj_sigma_rcpp(arma::mat Sigma, const arma::mat R_T, const arma::mat D2_T, const arma::vec psi, const arma::ivec use_idx, const uint order);
 RcppExport SEXP _lvmmrPQL_obj_sigma_rcpp(SEXP SigmaSEXP, SEXP R_TSEXP, SEXP D2_TSEXP, SEXP psiSEXP, SEXP use_idxSEXP, SEXP orderSEXP) {
@@ -57,6 +73,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_lvmmrPQL_get_cumulant_diffs", (DL_FUNC) &_lvmmrPQL_get_cumulant_diffs, 3},
     {"_lvmmrPQL_working_ll_rcpp", (DL_FUNC) &_lvmmrPQL_working_ll_rcpp, 8},
+    {"_lvmmrPQL_project_rcpp", (DL_FUNC) &_lvmmrPQL_project_rcpp, 6},
     {"_lvmmrPQL_obj_sigma_rcpp", (DL_FUNC) &_lvmmrPQL_obj_sigma_rcpp, 6},
     {NULL, NULL, 0}
 };

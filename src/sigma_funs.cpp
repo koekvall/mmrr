@@ -47,7 +47,7 @@ Rcpp::List obj_sigma_rcpp(arma::mat Sigma,
       G += C;
     }
 
-    // ith contribution to gradient
+    // ith contribution to Hessian
     if(order >= 2){
       I.each_row() %= D2_T.col(idx).t();
       arma::mat v = I * (R_T.col(idx) / D2_T.col(idx));

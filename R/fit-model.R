@@ -14,12 +14,14 @@
 #'   same steps as the tol vector.
 #' @param relative If TRUE, use relative decrease of parameters to determine
 #'   convergence, otherwise use absolute.
-#' @param same If TRUE, the Taylor expansion point for the ith observation is
+#' @param pgd If TRUE, use projected gradient descent; gives PD Sigma estimate.
 #'   W[ii, ] = u + Xb[ii, ], for an u that does not depend on i.
 #' @param Beta A p-vector with starting values for the regression coefficients.
 #' @param Sigma An r x r initial iterate for the latent covariance matrix.
 #' @param W An n x r initial iterate for the expansion points.
 #' @param psi An r-vector of variance parameters.
+#' @param w_pen Ridge penalty in W update; often useful to avoid overflows.
+#'   Defaults to largest eigenvalue of current Sigma iterate.
 #' @return A list of final iterates
 #' @useDynLib lvmmrPQL, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
@@ -27,8 +29,8 @@
 #' @export
 #' @export
 lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
-                      quiet = rep(TRUE, 4), relative = TRUE, same = FALSE,
-                      Beta, Sigma, W, psi = rep(1, ncol(Y)))
+                      quiet = rep(TRUE, 4), relative = TRUE, pgd = FALSE,
+                      Beta, Sigma, W, psi = rep(1, ncol(Y)), w_pen)
 {
   # Define constants
   n <- nrow(Y)
@@ -72,14 +74,18 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
     in_iter <- 0
     iterate_inner <- in_iter < maxit[2]
 
-    # Avoid using Beta and Sigma in inner loop.
+    # Avoid using Beta and Sigma storage in inner loop.
     # Starting value of Sigma is set to be PD and satisfy constraints
     # NB: This is only for the starting value, and is done for stability
     # since the W update may have led to indefinite C = B Sigma B + B Psi
     # at the previous iterate of Sigma.
     new_Beta <- Beta
-    new_Sigma <- project_pd_M(input = Sigma, M = M, epsilon = sqrt(.Machine$double.eps), tol = sqrt(.Machine$double.eps),
-                              max.iter = 1e4)
+    new_Sigma <- project_rcpp(X = Sigma,
+                              restr_idx = which(c(!is.na(M))),
+                              restr = as.numeric(M[!is.na(M)]),
+                              eps = sqrt(.Machine$double.eps),
+                              tol = sqrt(.Machine$double.eps),
+                              maxit = 1e4)
     # Pre-compute
     D1 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 1))
     D2 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 2))
@@ -90,19 +96,23 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
                                     Sigma = new_Sigma, W_T = t(W), psi = psi,
                                     D1_T = t(D1), D2_T = t(D2))
       # Update Sigma
-      H <- matrix(X %*% new_Beta, nrow = n, ncol = r, byrow = T) # called Xb elsewhere
-      H <- D1 + D2 * (H - W)
-      H <- Y - H
-
-      new_Sigma <- update_Sigma_trust(Sigma = new_Sigma, R = H, D2 = D2,
-                                      psi = psi, M = M, use_idx = 1:n)
-      # new_Sigma <- update_Sigma_PQL(H = H, A =  A, B = D2,
-      #                               Sigma.init = new_Sigma,
-      #                               M = M, epsilon = 1e-8, tol.dykstra = tol[3],
-      #                               tol.ipiano = tol[3],
-      #                               max.iter.dykstra = maxit[3],
-      #                               max.iter.ipiano = maxit[3],
-      #                               quiet = quiet[3])
+      R <- matrix(X %*% new_Beta, nrow = n, ncol = r, byrow = T) # called Xb elsewhere
+      R <- D1 + D2 * (R - W)
+      R <- Y - R
+      if(pgd){
+        new_Sigma <- update_Sigma_proj(R = R, D2 = D2, psi = psi,
+                                       Sigma.init = new_Sigma,
+                                       M = M, epsilon = 1e-8,
+                                       tol.dykstra = tol[3],
+                                       tol.ipiano = tol[3],
+                                       max.iter.dykstra = maxit[3],
+                                       max.iter.ipiano = maxit[3],
+                                       quiet = quiet[3])
+      } else{
+        new_Sigma <- update_Sigma_trust(Sigma_start = new_Sigma, R = R,
+                                        D2 = D2, psi = psi, M = M,
+                                        use_idx = 1:n)
+      }
 
       if(!quiet[2]){
         mid_obj <- -working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = new_Beta,
@@ -114,8 +124,6 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
                   \n")
         }
       }
-
-
 
       # Update Beta
       new_Beta <- update_beta(Y = Y, X = X, W = W, Sigma = new_Sigma, psi = psi,
@@ -141,10 +149,11 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
     } # End inner loop
 
     # Update W
+    pen <- ifelse(missing(w_pen), max(abs(eigen(new_Sigma)$val)), w_pen)
     W <- update_W(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
                     psi = psi, type = type, tol = tol[4],
                     maxit = maxit[4], quiet = quiet[4],
-                    pen = 10)
+                    pen = pen)
 
     # Check whether to terminate outer loop
     # (Seems elementwise relative change could be unstable here?)

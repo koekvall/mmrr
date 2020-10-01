@@ -79,11 +79,13 @@ fit$Sigma - Sigma_MLE
 D1 <- t(lvmmrPQL:::get_cumulant_diffs(t(fit$W), type, 1))
 D2 <- t(lvmmrPQL:::get_cumulant_diffs(t(fit$W), type, 2))
 
-lvmmrPQL:::working_ll(Y = Y, X = X, Beta = fit$Beta, Sigma = fit$Sigma,
-                     W = fit$W, psi = psi_true, D1 = D1, D2 = D2)
+lvmmrPQL:::working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = fit$Beta,
+                                  Sigma = fit$Sigma, W_T = t(fit$W), psi = psi_true,
+                                  D1_T = t(D1), D2_T = t(D2))
 
-lvmmrPQL:::working_ll(Y = Y, X = X, Beta = Beta_MLE, Sigma = Sigma_MLE,
-                     W = fit$W, psi = psi_true, D1 = D1, D2 = D2)
+lvmmrPQL:::working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = Beta_MLE,
+                                  Sigma = Sigma_MLE, W_T = t(fit$W), psi = psi_true,
+                                  D1_T = t(D1), D2_T = t(D2))
 
 # Double check w. multivariate normal likelihood
 Xb <- matrix(X %*% fit$Beta, nrow = n, ncol = r, byrow = T)

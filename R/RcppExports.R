@@ -5,3 +5,11 @@ get_cumulant_diffs <- function(W_T, type, order) {
     .Call(`_lvmmrPQL_get_cumulant_diffs`, W_T, type, order)
 }
 
+working_ll_rcpp <- function(Y_T, X_T, beta, Sigma, W_T, psi, D1_T, D2_T) {
+    .Call(`_lvmmrPQL_working_ll_rcpp`, Y_T, X_T, beta, Sigma, W_T, psi, D1_T, D2_T)
+}
+
+obj_sigma_rcpp <- function(Sigma, R_T, D2_T, psi, use_idx, order) {
+    .Call(`_lvmmrPQL_obj_sigma_rcpp`, Sigma, R_T, D2_T, psi, use_idx, order)
+}
+

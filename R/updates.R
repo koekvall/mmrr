@@ -39,7 +39,7 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
 
   # Set lower limit on eigenvalues for stability
   e_S <- eigen(Sigma)
-  e_S$values <- sapply(e_S$values, max, sqrt(.Machine$double.eps))
+  e_S$values <- pmax(e_S$values, sqrt(.Machine$double.eps))
 
   # Replace by "inverse"
   Sigma <- e_S$vectors %*% (e_S$values * t(e_S$vectors))
@@ -49,7 +49,8 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
 
   # This update uses ui = W[ii, ] - Xb[ii, ]
   # The ith objective is:
-  #     Y[ii, ] * u - c(u + Xb[ii, ]) - 0.5 * t(u) %*% solve(Sigma) %*% u
+  #     -Y[ii, ] * u + c(u + Xb[ii, ]) + 0.5 * t(u) %*% solve(Sigma) %*% u +
+  #         0.5 * pen ||u||^2
 
   for(ii in 1:n){
     trust_obj <- function(u){
@@ -61,11 +62,12 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
       # Objective
       val <-  sum(d0 - Y[ii, ] * u)
       val <- as.numeric(val + 0.5 * crossprod(u, Sigma %*% u))
+      val <- val + 0.5 * pen * sum(u^2)
 
       # Gradient
       g <- d1 - Y[ii, ]
 
-      g <- as.numeric(g + Sigma %*% u)
+      g <- as.numeric(g + Sigma %*% u + pen * u)
 
       # Hessian (modified)
       H <- Sigma
@@ -103,7 +105,7 @@ update_W_same <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-
   e_S$values <- e_S$values + pen
 
   # Guard against ill-conditioned Hessian
-  e_S$values <- sapply(e_S$values, min, 1 / sqrt(.Machine$double.eps))
+  e_S$values <- pmin(e_S$values, 1 / sqrt(.Machine$double.eps))
 
   # # Objective function for u
   # obj <- function(u){
@@ -285,8 +287,7 @@ update_Sigma_PQL <- function(H, A, B, Sigma.init, M, epsilon = 0, tol.dykstra = 
   return(Sigma)
 }
 
-update_Sigma_trust <- function(Sigma_start, R, D2, psi, M, use_idx,
-                               pen = sqrt(.Machine$double.eps))
+update_Sigma_trust <- function(Sigma_start, R, D2, psi, M, use_idx)
 {
   n <- nrow(R)
   r <- ncol(R)
@@ -303,18 +304,12 @@ update_Sigma_trust <- function(Sigma_start, R, D2, psi, M, use_idx,
     Sigma[opt_idx] <- theta
     Sigma[upper.tri(Sigma)] <- t(Sigma)[upper.tri(Sigma)]
 
-    v <- obj_Sigma(Sigma = Sigma, R = R, D2 = D2, psi = psi,
-                       use_idx = use_idx)
+    all_outs <- obj_sigma_rcpp(Sigma = Sigma, R_T = t(R), D2_T = t(D2),
+                               psi = psi, use_idx = 1:n, order = 2)
+    g <- as.numeric(crossprod(D, as.numeric(all_outs$gradient)))[is.na(m)]
 
-    dSigma <- gradient_Sigma(Sigma = Sigma, R = R, D2 = D2, psi = psi,
-                             use_idx = use_idx)
-
-    g <- as.numeric(crossprod(D, as.numeric(dSigma)))[is.na(m)]
-
-    ddSigma <- hessian_Sigma(Sigma = Sigma, R = R, D2 = D2, psi = psi,
-                             use_idx = use_idx)
-    H <- crossprod(D, ddSigma %*% D)[is.na(m), is.na(m)]
-    return(list(value = v, gradient = g, hessian = H))
+    H <- crossprod(D, all_outs$hessian %*% D)[is.na(m), is.na(m)]
+    return(list(value = all_outs$value, gradient = g, hessian = H))
   }
 
     opt <- trust::trust(objfun = obj, parinit = theta0, rinit = 1, rmax = 100)

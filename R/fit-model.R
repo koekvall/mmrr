@@ -68,31 +68,34 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
   iterate_outer <- out_iter < maxit[1] # Iterate updating (Beta, Sigma) and W
   while(iterate_outer){
 
-    # Inner loop with joint update of Beta and Sigma
+    # For inner loop with joint update of Beta and Sigma
     in_iter <- 0
     iterate_inner <- in_iter < maxit[2]
 
-    # Avoid using Beta and Sigma in inner loop
+    # Avoid using Beta and Sigma in inner loop.
+    # Starting value of Sigma is set to be PD and satisfy constraints
+    # NB: This is only for the starting value, and is done for stability
+    # since the W update may have led to indefinite C = B Sigma B + B Psi
+    # at the previous iterate of Sigma.
     new_Beta <- Beta
-    new_Sigma <- Sigma
-
+    new_Sigma <- project_pd_M(input = Sigma, M = M, epsilon = sqrt(.Machine$double.eps), tol = sqrt(.Machine$double.eps),
+                              max.iter = 1e4)
     # Pre-compute
     D1 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 1))
     D2 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 2))
-    A <- sweep(D2, 2, psi, FUN = "*")
+
     while(iterate_inner){
       # Track progress of Beta and Sigma update
-      start_obj <- -working_ll(Y = Y, X = X, Beta = new_Beta,
-                                 Sigma = new_Sigma, W = W,
-                                 psi = psi, D1 = D1, D2 = D2)
-
+      start_obj <- -working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = new_Beta,
+                                    Sigma = new_Sigma, W_T = t(W), psi = psi,
+                                    D1_T = t(D1), D2_T = t(D2))
       # Update Sigma
       H <- matrix(X %*% new_Beta, nrow = n, ncol = r, byrow = T) # called Xb elsewhere
       H <- D1 + D2 * (H - W)
       H <- Y - H
+
       new_Sigma <- update_Sigma_trust(Sigma = new_Sigma, R = H, D2 = D2,
-                                      psi = psi, M = M, use_idx = 1:n,
-                                      pen = 1e-8)
+                                      psi = psi, M = M, use_idx = 1:n)
       # new_Sigma <- update_Sigma_PQL(H = H, A =  A, B = D2,
       #                               Sigma.init = new_Sigma,
       #                               M = M, epsilon = 1e-8, tol.dykstra = tol[3],
@@ -102,9 +105,9 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
       #                               quiet = quiet[3])
 
       if(!quiet[2]){
-        mid_obj <-  -working_ll(Y = Y, X = X, Beta = new_Beta,
-                                Sigma = new_Sigma, W = W,
-                                psi = psi, D1 = D1, D2 = D2)
+        mid_obj <- -working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = new_Beta,
+                                   Sigma = new_Sigma, W_T = t(W), psi = psi,
+                                   D1_T = t(D1), D2_T = t(D2))
         cat("Change from Sigma update: ", mid_obj - start_obj, "\n")
         if(mid_obj - start_obj > tol[2]){
           warning("Sigma update increased objective function more than tol[2].
@@ -119,9 +122,9 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
                               type = type)
 
       # Track progress of Beta and Sigma update
-      end_obj <- -working_ll(Y = Y, X = X, Beta = new_Beta,
-                               Sigma = new_Sigma, W = W,
-                               psi = psi, D1 = D1, D2 = D2)
+      end_obj <- -working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = new_Beta,
+                                  Sigma = new_Sigma, W_T = t(W), psi = psi,
+                                  D1_T = t(D1), D2_T = t(D2))
       if(!quiet[2]){
         cat("Change from Beta update: ", end_obj - mid_obj, "\n")
         if(end_obj - mid_obj > tol[2]){
@@ -138,15 +141,10 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
     } # End inner loop
 
     # Update W
-    if(same){
-      W <- update_W_same(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
+    W <- update_W(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
                     psi = psi, type = type, tol = tol[4],
-                    maxit = maxit[4], quiet = quiet[4])
-    } else{
-      W <- update_W(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
-                    psi = psi, type = type, tol = tol[4],
-                    maxit = maxit[4], quiet = quiet[4])
-    }
+                    maxit = maxit[4], quiet = quiet[4],
+                    pen = 10)
 
     # Check whether to terminate outer loop
     # (Seems elementwise relative change could be unstable here?)

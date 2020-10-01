@@ -1,8 +1,11 @@
 ---
 title: "Latent Variable Multivariate Mixed-type Response Regression"
 author: "Karl Oskar Ekvall"
-date: "9/21/2020"
 output: pdf_document
+vignette: >
+  %\VignetteIndexEntry{Latent Variable Multivariate Mixed-type Response Regression}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
 ---
 
 # Installation
@@ -101,7 +104,7 @@ sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE + diag(psi_true
 # Example with mixed-type responses
 ```{r}
 set.seed(4)
-n <- 500
+n <- 1000
 type <- c(1, 1, 2, 2, 3, 3)
 r <- length(type)
 
@@ -115,7 +118,6 @@ Beta_true <- c(1:(2 * r)) / (2 * r)
 # Variance parameters, psi treated as known
 Sigma_true <- matrix(0.9, r, r)
 diag(Sigma_true) <- 1
-Sigma_true <- 2 * Sigma_true
 psi_true <- rep(1, r)
 psi_true[type == "2"] <- 1 # Bernoulli does not suppose psi
 

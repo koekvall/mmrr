@@ -1,14 +1,16 @@
 Package: lvmmrPQL
 Type: Package
-Title: Latent Variables Multivariate Mixed-type Regression by PQL
+Title: Latent Variables Multivariate Mixed-type Response Regression by PQL
 Version: 0.1
 Date: 2020-09-21
 Author: Karl Oskar Ekvall <k.o.ekvall@gmail.com>, Aaron J. Molstad <amolstad@ufl.edu>
 Maintainer: Karl Oskar Ekvall <k.o.ekvall@gmail.com>
-Description: Fits latent variables multivariate mixed-type regression models,
+Description: Fits latent variables multivariate mixed-type response regression models,
   using a penalized quasi-likleihood algorithm.
 License: MIT + file LICENSE
-Imports: Rcpp (>= 1.0.0), statmod, mvtnorm, trust, matrixcalc
+Imports: Rcpp (>= 1.0.0), statmod, trust, matrixcalc
 LinkingTo: Rcpp, RcppArmadillo
 Encoding: UTF-8
 RoxygenNote: 7.1.1
+Suggests: knitr, rmarkdown, mvtnorm, Matrix
+VignetteBuilder: knitr

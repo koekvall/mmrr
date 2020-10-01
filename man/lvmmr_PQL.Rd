@@ -8,12 +8,13 @@ lvmmr_PQL(
   Y,
   X,
   type,
-  M,
+  M = matrix(NA, nrow = nrow(Sigma), ncol = ncol(Sigma)),
   tol = rep(1e-08, 4),
   maxit = rep(100, 4),
   quiet = rep(TRUE, 4),
   relative = TRUE,
   pgd = FALSE,
+  eps = 0,
   Beta,
   Sigma,
   W,
@@ -29,7 +30,7 @@ lvmmr_PQL(
 \item{type}{An r-vector indicating response types: 1 means normal, 2 means
 Bernoulli, and 3 means Poisson.}
 
-\item{M}{An r x r matrix with restrictions, with NA for unrestricted}
+\item{M}{An r x r matrix with restrictions, with NA for unrestricted.}
 
 \item{tol}{A 4-vector with tolerances for termination of: [1] overall
 algorithm, [2] update of Beta and Sigma with W fixed, [3] update
@@ -47,16 +48,23 @@ convergence, otherwise use absolute.}
 \item{pgd}{If TRUE, use projected gradient descent; gives PD Sigma estimate.
 W[ii, ] = u + Xb[ii, ], for an u that does not depend on i.}
 
-\item{Beta}{A p-vector with starting values for the regression coefficients.}
+\item{eps}{Lower bound for the smallest eigenvalue of Sigma, only used if
+pgd = TRUE.}
 
-\item{Sigma}{An r x r initial iterate for the latent covariance matrix.}
+\item{Beta}{Initial iterate of regression coefficient vector.
+Is obtained by fitting separate GLMs if not supplied.}
 
-\item{W}{An n x r initial iterate for the expansion points.}
+\item{Sigma}{An r x r initial iterate for the latent covariance matrix.
+Is set to diag(1e-3, ncol(Y)) if not supplied.}
+
+\item{W}{An n x r initial iterate for the expansion points.
+Is set to matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE) if not
+supplied.}
 
 \item{psi}{An r-vector of variance parameters.}
 
 \item{w_pen}{Ridge penalty in W update; often useful to avoid overflows.
-Defaults to largest eigenvalue of current Sigma iterate.}
+Defaults to largest eigenvalue of current Sigma iterate if not supplied.}
 }
 \value{
 A list of final iterates

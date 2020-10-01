@@ -4,7 +4,7 @@
 #' @param X An nr x p matrix of predictors.
 #' @param type An r-vector indicating response types: 1 means normal, 2 means
 #'   Bernoulli, and 3 means Poisson.
-#' @param M An r x r matrix with restrictions, with NA for unrestricted
+#' @param M An r x r matrix with restrictions, with NA for unrestricted.
 #' @param tol A 4-vector with tolerances for termination of: [1] overall
 #'    algorithm, [2] update of Beta and Sigma with W fixed, [3] update
 #'    of Sigma, and [4] update of W.
@@ -16,21 +16,29 @@
 #'   convergence, otherwise use absolute.
 #' @param pgd If TRUE, use projected gradient descent; gives PD Sigma estimate.
 #'   W[ii, ] = u + Xb[ii, ], for an u that does not depend on i.
-#' @param Beta A p-vector with starting values for the regression coefficients.
+#' @param eps Lower bound for the smallest eigenvalue of Sigma, only used if
+#'   pgd = TRUE.
+#' @param Beta Initial iterate of regression coefficient vector.
+#'    Is obtained by fitting separate GLMs if not supplied.
 #' @param Sigma An r x r initial iterate for the latent covariance matrix.
+#'    Is set to diag(1e-3, ncol(Y)) if not supplied.
 #' @param W An n x r initial iterate for the expansion points.
+#'    Is set to matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE) if not
+#'    supplied.
 #' @param psi An r-vector of variance parameters.
 #' @param w_pen Ridge penalty in W update; often useful to avoid overflows.
-#'   Defaults to largest eigenvalue of current Sigma iterate.
+#'   Defaults to largest eigenvalue of current Sigma iterate if not supplied.
 #' @return A list of final iterates
 #' @useDynLib lvmmrPQL, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
 #' @importFrom Rcpp evalCpp
 #' @export
 #' @export
-lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
+lvmmr_PQL <- function(Y, X, type,
+                      M = matrix(NA, nrow = nrow(Sigma), ncol = ncol(Sigma)),
+                      tol = rep(1e-8, 4), maxit = rep(1e2, 4),
                       quiet = rep(TRUE, 4), relative = TRUE, pgd = FALSE,
-                      Beta, Sigma, W, psi = rep(1, ncol(Y)), w_pen)
+                      eps = 0, Beta, Sigma, W, psi = rep(1, ncol(Y)), w_pen)
 {
   # Define constants
   n <- nrow(Y)
@@ -69,7 +77,6 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
   out_iter <- 0
   iterate_outer <- out_iter < maxit[1] # Iterate updating (Beta, Sigma) and W
   while(iterate_outer){
-
     # For inner loop with joint update of Beta and Sigma
     in_iter <- 0
     iterate_inner <- in_iter < maxit[2]
@@ -102,7 +109,7 @@ lvmmr_PQL <- function(Y, X, type, M, tol = rep(1e-8, 4), maxit = rep(1e2, 4),
       if(pgd){
         new_Sigma <- update_Sigma_proj(R = R, D2 = D2, psi = psi,
                                        Sigma.init = new_Sigma,
-                                       M = M, epsilon = 1e-8,
+                                       M = M, epsilon = eps,
                                        tol.dykstra = tol[3],
                                        tol.ipiano = tol[3],
                                        max.iter.dykstra = maxit[3],

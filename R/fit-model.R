@@ -54,6 +54,23 @@ lvmmr_PQL <- function(Y, X, type,
     M[upper.tri(M)] <- t(M)[upper.tri(M)]
   }
 
+  # Check that Sigma update is needed
+  if(all(!is.na(M))){
+    message("Skipping Sigma update because all elements constrained.")
+    maxit[3] <- 0
+    Sigma <- M
+  }
+
+  # Check if restrictions imply independence
+  test_M <- M
+  test_M[is.na(test_M)] <- 1
+  diag(test_M) <- 1
+  if(any(colSums(abs(test_M)) == 0)){
+    message("Restrictions imply one or more responses are independent of all
+            others; consider separate models.")
+  }
+  rm(test_M)
+
   # Get starting values from GLMs if missing
   if(missing(Beta)){
     # Fit separately for every response type and use
@@ -118,7 +135,8 @@ lvmmr_PQL <- function(Y, X, type,
       } else{
         new_Sigma <- update_Sigma_trust(Sigma_start = new_Sigma, R = R,
                                         D2 = D2, psi = psi, M = M,
-                                        use_idx = 1:n)
+                                        use_idx = 1:n, maxit = maxit[3],
+                                        tol = tol[3])
       }
 
       if(!quiet[2]){

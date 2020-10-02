@@ -64,7 +64,7 @@ lvmmr_PQL <- function(Y, X, type,
   # Check if restrictions imply independence
   test_M <- M
   test_M[is.na(test_M)] <- 1
-  diag(test_M) <- 1
+  diag(test_M) <- 0
   if(any(colSums(abs(test_M)) == 0)){
     message("Restrictions imply one or more responses are independent of all
             others; consider separate models.")

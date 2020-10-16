@@ -6,7 +6,7 @@ arma::mat project_rcpp(arma::mat X, const arma::uvec restr_idx, const arma::vec 
 {
   const uint d = X.n_cols;
   const double Inf = std::numeric_limits<double>::infinity();
-  
+
   arma::mat Xk(d, d);
   if(restr_idx.n_elem == 0){
     arma::vec e(d);

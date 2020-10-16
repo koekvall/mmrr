@@ -6,28 +6,27 @@ update_beta <- function(Y, X, W, Sigma, psi, type)
 
   D1 <- t(get_cumulant_diffs(t(W), type, 1)) # t(); C++ code has obs by column
   D2 <- t(get_cumulant_diffs(t(W), type, 2))
-
   # Allocate
   H <- matrix(0, nrow = p, ncol = p + 1)
   for(ii in 1:n){
     # Working covariance
-    C <- Sigma * tcrossprod(D2[ii, ]) # Works because drop = TRUE in D2 index
-    diag(C) <- diag(C) + psi * D2[ii, ]
+    C <- D2[ii, ] * Sigma # Works with recycling because drop = TRUE in D2
+    diag(C) <- diag(C) + psi
+    s_C <- svd(C)
 
-    # Working predictor
+    # Predictor
     start_idx <- (ii - 1) * r + 1
-    Zi <- X[seq(start_idx, start_idx + r - 1), , drop = F]
-
-    # Scale jth row by \nabla c_j(w_j), j = 1, ... r, by recycling.
-    Zi <- Zi * D2[ii, ]
+    Xi <- X[seq(start_idx, start_idx + r - 1), , drop = F]
 
     # Working response
     yi <- Y[ii, ] - D1[ii, ] + D2[ii, ] * W[ii, ]
 
     # Sum up individual contributions
-    H <- H + crossprod(Zi, qr.solve(C, cbind(Zi, yi)))
+    H <- H + crossprod(Xi, s_C$v %*% ((1 / s_C$d) * t(s_C$u)) %*%
+                         cbind(D2[ii, ] * Xi, yi))
   }
-  return(qr.solve(H[, 1:p], H[, p + 1]))
+  # Use pseudo-inverse
+  return(solve(H[, 1:p], H[, p + 1]))
 }
 
 update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
@@ -120,7 +119,6 @@ update_Sigma_proj <- function(R, D2, psi, Sigma.init, M, epsilon = 0,
     # KO: is this a good idea?
     if(max(abs(tempGrad)) <= tol.ipiano) linesearch <- FALSE
     while(linesearch){
-
       # -- interial step projected grad ---
       # b <- (delta + Ln/2)/(c2 + Ln/2)
       # Bn <- (b-1)/(b-.5)
@@ -142,13 +140,14 @@ update_Sigma_proj <- function(R, D2, psi, Sigma.init, M, epsilon = 0,
                                  psi = psi,
                                  use_idx = 1:nrow(R),
                                  order = 0)$value
-      if(obj.temp < obj.prev + sum(tempGrad * t(Sigma.temp - Sigma)) +
+      if(obj.temp >= obj.prev + sum(tempGrad * t(Sigma.temp - Sigma)) +
          (Ln / 2)*sum((Sigma.temp - Sigma)^2)){
         Sigmakm1 <- Sigma
         Sigma <- Sigma.temp
         linesearch <- FALSE
       } else {
         Ln <- Ln * 5
+        if(Ln >= sqrt(.Machine$double.xmax)) linesearch <- FALSE
       }
     }
 

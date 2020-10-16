@@ -78,7 +78,7 @@ lvmmr_PQL <- function(Y, X, type,
     unique_types <- unique(type)
     uni_coefs <- matrix(0, ncol = length(unique_types), nrow = p)
     for(ii in 1:length(unique_types)){
-      fam <- c("gaussian", "binomial", "poisson")[unique_types[ii]]
+      fam <- c("gaussian", "binomial", "quasipoisson")[unique_types[ii]]
       y_uni <- c(Y[, type == unique_types[ii]])
       X_uni <- X[rep(type == unique_types[ii], n), ]
       glm_fit <- stats::glm(y_uni ~ 0 + X_uni, family = fam)
@@ -144,9 +144,9 @@ lvmmr_PQL <- function(Y, X, type,
                                    Sigma = new_Sigma, W_T = t(W), psi = psi,
                                    D1_T = t(D1), D2_T = t(D2))
         cat("Change from Sigma update: ", mid_obj - start_obj, "\n")
-        if(mid_obj - start_obj > tol[2]){
-          warning("Sigma update increased objective function more than tol[2].
-                  \n")
+        if(mid_obj - start_obj > sqrt(tol[2])){
+          warning("Sigma update increased objective function more than
+          sqrt(tol[2]). \n")
         }
       }
 
@@ -160,9 +160,9 @@ lvmmr_PQL <- function(Y, X, type,
                                   D1_T = t(D1), D2_T = t(D2))
       if(!quiet[2]){
         cat("Change from Beta update: ", end_obj - mid_obj, "\n")
-        if(end_obj - mid_obj > tol[2]){
-          warning("Beta update increased objective function more than tol[2].
-                  \n")
+        if(end_obj - mid_obj > sqrt(tol[2])){
+          warning("Beta update increased objective function more than
+          sqrt(tol[2]). \n")
         }
       }
 
@@ -200,7 +200,7 @@ lvmmr_PQL <- function(Y, X, type,
     Beta <- new_Beta
     Sigma <- new_Sigma
   } # End outer loop
-  return(list(Beta = Beta, Sigma = Sigma, W = W, iter = out_iter,
+  return(list(Beta = unname(Beta), Sigma = Sigma, W = W, iter = out_iter,
               change = change))
 }
 

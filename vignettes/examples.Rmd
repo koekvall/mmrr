@@ -104,7 +104,7 @@ sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE + diag(psi_true
 ```{r}
 set.seed(4)
 n <- 1000
-type <- c(1, 1, 2, 2, 3, 3)
+type <- c(2, 3)
 r <- length(type)
 
 # Each observation has an intercept and one uniform predictor (SUR)
@@ -118,7 +118,8 @@ Beta_true <- c(1:(2 * r)) / (2 * r)
 Sigma_true <- matrix(0.9, r, r)
 diag(Sigma_true) <- 1
 psi_true <- rep(1, r)
-psi_true[type == "2"] <- 1 # Bernoulli does not suppose psi
+psi_true[type == 2] <- 1 # Bernoulli does not suppose psi
+psi_true[type == 1] <- 1e-5 # Bernoulli does not suppose psi
 
 Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
@@ -127,15 +128,13 @@ M <- matrix(NA, r, r)
 diag(M)[type == 2] <- 1
 
 
-
 fit_trust <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = FALSE,
                            quiet = c(F, T, T, T),
                            maxit = c(50, 100, 500, 100),
                            tol = c(1e-5, 1e-7, 1e-10, 1e-8),
                            psi = psi_true,
-                           pgd = FALSE,
-                           Beta = Beta_true)
+                           pgd = FALSE)
 # Use starting values
 fit_pgd <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = FALSE,

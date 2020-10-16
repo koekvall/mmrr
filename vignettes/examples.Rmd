@@ -115,7 +115,7 @@ r <- length(type)
 
 # Each observation has an intercept and two uniform predictor (SUR)
 p <- 2
-X <- matrix(0, nrow=n*r, ncol=r*(p+1))
+X <- matrix(0, nrow= n * r, ncol = r * ( p + 1))
 counter <- 1
 for(jj in 1:n){
   for(kk in 1:r){
@@ -124,13 +124,13 @@ for(jj in 1:n){
   }
 }
 
-Beta_true <- rep(2, (p + 1) * r)
+Beta_true <- 1.5 * runif((p + 1) * r, -1, 1)
 
 # Variance parameters, psi treated as known
-Sigma_true <- matrix(0.9, r, r)
+Sigma_true <- matrix(0.999, r, r)
 diag(Sigma_true) <- 1
-Sigma_true <- 2 * Sigma_true
-psi_true <- rep(1e-5, r)
+Sigma_true <- 0.1 * Sigma_true
+psi_true <- rep(1e-7, r)
 psi_true[type == 2] <- 1 # Bernoulli does not support psi
 
 Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
@@ -150,7 +150,7 @@ fit_trust <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
 # Use starting values
 fit_pgd <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = FALSE,
-                           quiet = c(F, T, T, T),
+                           quiet = c(F, F, F, T),
                            maxit = c(50, 100, 500, 100),
                            tol = c(1e-5, 1e-7, 1e-10, 1e-8),
                            psi = psi_true,
@@ -170,7 +170,7 @@ fit_diag <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            psi = psi_true,
                            pgd = TRUE,
                            Beta = fit_trust$Beta,
-                           Sigma = fit_trust$Sigma,
+                           Sigma = diag(diag(fit_trust$Sigma), r),
                            W = fit_trust$W)
 
 # Create prediction data
@@ -202,7 +202,6 @@ Beta_GLM <- apply(uni_coefs, 1, mean, na.rm = T)
 Xb_GLM <- matrix(X_new %*% Beta_GLM, nrow = n_pred, ncol = r, byrow = T)
 pred_GLM <- t(lvmmrPQL:::get_cumulant_diffs(t(Xb_GLM), type, 1))
 
-
 # We win (sometimes and often small).
 pred_trust <- lvmmrPQL::predict_lvmmr(X = X_new,
                                           Beta = fit_trust$Beta,
@@ -229,7 +228,7 @@ get_rmse <- function(x){sqrt(colMeans((x - Y_new)^2))}
 RMSE <- rbind(get_rmse(pred_trust), get_rmse(pred_pgd), get_rmse(pred_diag), 
       get_rmse(pred_GLM))
 RMSE <- t(t(RMSE) / get_rmse(pred_oracle))
-rownames(RMSE) <- c("Trust region", "PGD", "Diag.", "GLM")
+rownames(RMSE) <- c("Trust", "PGD", "Indep.", "GLM")
 RMSE
 ```
 

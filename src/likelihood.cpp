@@ -22,6 +22,7 @@ double working_ll_rcpp(const arma::mat Y_T,
     C.each_row() %= D2_T.col(ii).t();
     C.each_col() %= D2_T.col(ii);
     C.diag() += psi % D2_T.col(ii);
+    C = arma::symmatu(C);
 
     arma::mat U(r, r);
     arma::vec d(r);

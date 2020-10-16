@@ -1,8 +1,8 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-arma::mat project_rcpp(arma::mat X, const arma::uvec restr_idx, const arma::vec restr,
-   const double eps, const double tol, uint maxit)
+arma::mat project_rcpp(arma::mat X, const arma::uvec restr_idx,
+  const arma::vec restr, const double eps, const double tol, uint maxit)
 {
   const uint d = X.n_cols;
   const double Inf = std::numeric_limits<double>::infinity();
@@ -10,6 +10,7 @@ arma::mat project_rcpp(arma::mat X, const arma::uvec restr_idx, const arma::vec 
   arma::mat Xk(d, d);
   if(restr_idx.n_elem == 0){
     arma::vec e(d);
+    X = arma::symmatu(X);
     arma::eig_sym(e, X, X);
     Xk = X * arma::diagmat(arma::clamp(e, eps, Inf)) * X.t();
   } else{
@@ -26,6 +27,7 @@ arma::mat project_rcpp(arma::mat X, const arma::uvec restr_idx, const arma::vec 
       arma::mat Pk = Xkm1 + Pkm1 - Ykm1;
       arma::mat U = Ykm1 + Qkm1;
       arma::vec e(d);
+      U = arma::symmatu(U);
       arma::eig_sym(e, U, U);
       Xk = U * arma::diagmat(arma::clamp(e, eps, Inf)) * U.t();
       arma::mat Qk = Ykm1 + Qkm1 - Xk;

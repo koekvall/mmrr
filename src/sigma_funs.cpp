@@ -22,7 +22,8 @@ Rcpp::List obj_sigma_rcpp(arma::mat Sigma,
     C.each_row() %= D2_T.col(idx).t();
     C.each_col() %= D2_T.col(idx);
     C.diag() += psi % D2_T.col(idx);
-
+    C = arma::symmatu(C);
+    
     arma::mat U(r, r);
     arma::vec d(r);
     arma::eig_sym(d, U, C);

@@ -54,7 +54,7 @@ min(eigen(Sigma_MLE)$values)
 # regardless of whether algorithm finds MLE of Sigma.
 fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            relative = T,
-                           quiet = c(F, T, T, T),
+                           quiet = c(T, T, T, T),
                            maxit = c(100, 100, 500, 0),
                            tol = c(1e-12, 1e-8, 1e-10, 1e-8),
                            psi = psi_true,

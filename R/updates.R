@@ -140,8 +140,8 @@ update_Sigma_proj <- function(R, D2, psi, Sigma.init, M, epsilon = 0,
                                  psi = psi,
                                  use_idx = 1:nrow(R),
                                  order = 0)$value
-      if(obj.temp >= obj.prev + sum(tempGrad * t(Sigma.temp - Sigma)) +
-         (Ln / 2)*sum((Sigma.temp - Sigma)^2)){
+      if(!(obj.temp >= obj.prev + sum(tempGrad * t(Sigma.temp - Sigma)) +
+         (Ln / 2)*sum((Sigma.temp - Sigma)^2))){
         Sigmakm1 <- Sigma
         Sigma <- Sigma.temp
         linesearch <- FALSE

@@ -44,7 +44,8 @@ M <- matrix(NA, r, r)
 # Compute MLEs
 fit_MLE <- lm(Y ~ 1)
 Beta_MLE <- c(coef(fit_MLE))
-Sigma_MLE <- crossprod(matrix(residuals(fit_MLE), ncol = r)) / n - diag(psi_true, r)
+Sigma_MLE <- crossprod(matrix(residuals(fit_MLE), ncol = r)) / n -
+  diag(psi_true, r)
 
 # Does MLE exist? That is, is maximizer PD?
 min(eigen(Sigma_MLE)$values)
@@ -58,7 +59,7 @@ fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            maxit = c(100, 100, 500, 0),
                            tol = c(1e-12, 1e-8, 1e-10, 1e-8),
                            psi = psi_true,
-                           pgd = TRUE) # Fast and accurate for both pgd = T / F
+                           pgd = FALSE)
 # Difference to MLEs
 fit$Beta - Beta_MLE
 fit$Sigma - Sigma_MLE
@@ -84,17 +85,21 @@ D1 <- t(lvmmrPQL:::get_cumulant_diffs(t(fit$W), type, 1))
 D2 <- t(lvmmrPQL:::get_cumulant_diffs(t(fit$W), type, 2))
 
 lvmmrPQL:::working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = fit$Beta,
-                                  Sigma = fit$Sigma, W_T = t(fit$W), psi = psi_true,
+                                  Sigma = fit$Sigma, W_T = t(fit$W),
+                                  psi = psi_true,
                                   D1_T = t(D1), D2_T = t(D2))
 
 lvmmrPQL:::working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = Beta_MLE,
-                                  Sigma = Sigma_MLE, W_T = t(fit$W), psi = psi_true,
+                                  Sigma = Sigma_MLE, W_T = t(fit$W),
+                                  psi = psi_true,
                                   D1_T = t(D1), D2_T = t(D2))
 
 # Double check w. multivariate normal likelihood
 Xb <- matrix(X %*% fit$Beta, nrow = n, ncol = r, byrow = T)
-sum(mvtnorm::dmvnorm(x = Y - Xb, sigma = fit$Sigma + diag(psi_true), log = TRUE))
-sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE + diag(psi_true), log = TRUE))
+sum(mvtnorm::dmvnorm(x = Y - Xb, sigma = fit$Sigma +
+                       diag(psi_true, r), log = TRUE))
+sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE +
+                       diag(psi_true, r), log = TRUE))
 
 
 ```
@@ -102,24 +107,31 @@ sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE + diag(psi_true
 
 # Example with mixed-type responses
 ```{r}
-set.seed(4)
-n <- 1000
-type <- c(2, 3)
+set.seed(40)
+n <- 50
+type <- c(1, 2, 3)
 r <- length(type)
 
-# Each observation has an intercept and one uniform predictor (SUR)
-X <- as.matrix(Matrix::KhatriRao(matrix(runif(n * r, -1, 1), n, r),
-                                 diag(1, r)))
-X <- cbind(Matrix::kronecker(rep(1, n), diag(r)), X)
 
-Beta_true <- c(1:(2 * r)) / (2 * r)
+# Each observation has an intercept and two uniform predictor (SUR)
+p <- 2
+X <- matrix(0, nrow=n*r, ncol=r*(p+1))
+counter <- 1
+for(jj in 1:n){
+  for(kk in 1:r){
+    X[counter, ((kk-1)*(p+1) + 1):(kk*(p+1))] <- c(1, runif(p, -1, 1))
+    counter <- counter + 1
+  }
+}
+
+Beta_true <- rep(2, (p + 1) * r)
 
 # Variance parameters, psi treated as known
 Sigma_true <- matrix(0.9, r, r)
 diag(Sigma_true) <- 1
-psi_true <- rep(1, r)
-psi_true[type == 2] <- 1 # Bernoulli does not suppose psi
-psi_true[type == 1] <- 1e-5 # Bernoulli does not suppose psi
+Sigma_true <- 2 * Sigma_true
+psi_true <- rep(1e-5, r)
+psi_true[type == 2] <- 1 # Bernoulli does not support psi
 
 Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
@@ -147,40 +159,77 @@ fit_pgd <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
                            Sigma = fit_trust$Sigma,
                            W = fit_trust$W)
 
-# Predict
+# Diagonal
+M <- diag(NA, r)
+diag(M)[type == 2] <- 1
+fit_diag <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+                           relative = FALSE,
+                           quiet = c(F, T, T, T),
+                           maxit = c(50, 100, 500, 100),
+                           tol = c(1e-5, 1e-7, 1e-10, 1e-8),
+                           psi = psi_true,
+                           pgd = TRUE,
+                           Beta = fit_trust$Beta,
+                           Sigma = fit_trust$Sigma,
+                           W = fit_trust$W)
+
+# Create prediction data
 n_pred <- 1e4
-
-X_new <- as.matrix(Matrix::KhatriRao(matrix(runif(n_pred * r, -1, 1), n_pred, r),
-                                 diag(1, r)))
-X_new <- cbind(Matrix::kronecker(rep(1, n_pred), diag(r)), X_new)
-
+X_new <- matrix(0, nrow = n_pred * r, ncol= r * (p + 1))
+counter <- 1
+for(jj in 1:n_pred){
+  for(kk in 1:r){
+    X_new[counter, ((kk - 1) * (p + 1) + 1):(kk * (p + 1))] <-
+      c(1, runif(p, -1, 1))
+    counter <- counter + 1
+  }
+}
 Y_new <- lvmmrPQL::generate_lvmmr(X = X_new, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
-Beta_GLM <- matrix(0, 2, r)
-for(jj in 1:r){
-   fam <- c("gaussian", "binomial", "poisson")[type[jj]]
-   Beta_GLM[, jj] = coef(glm(Y[, jj] ~ 0 + X[seq(jj, nrow(X),  by = r),
-                                             c(jj, r + jj)], family = fam))
+
+# Get GLM Fit
+unique_types <- unique(type)
+uni_coefs <- matrix(0, ncol = length(unique_types), nrow = r * (p + 1))
+for(ii in 1:length(unique_types)){
+  fam <- c("gaussian", "binomial", "quasipoisson")[unique_types[ii]]
+  y_uni <- c(Y[, type == unique_types[ii]])
+  X_uni <- X[rep(type == unique_types[ii], n), ]
+  glm_fit <- stats::glm(y_uni ~ 0 + X_uni, family = fam)
+  uni_coefs[, ii] <- stats::coef(glm_fit)
 }
-Beta_GLM <- c(Beta_GLM)
+Beta_GLM <- apply(uni_coefs, 1, mean, na.rm = T)
 
 Xb_GLM <- matrix(X_new %*% Beta_GLM, nrow = n_pred, ncol = r, byrow = T)
 pred_GLM <- t(lvmmrPQL:::get_cumulant_diffs(t(Xb_GLM), type, 1))
 
 
 # We win (sometimes and often small).
-RMSE <- rbind(sqrt(colMeans((Y_new - lvmmrPQL::predict_lvmmr(X = X_new,
+pred_trust <- lvmmrPQL::predict_lvmmr(X = X_new,
                                           Beta = fit_trust$Beta,
                                           sigma = sqrt(diag(fit_trust$Sigma)),
                                           type = type,
-                                          num_nodes = 15))^2)),
-      sqrt(colMeans((Y_new - lvmmrPQL::predict_lvmmr(X = X_new,
+                                          num_nodes = 15)
+pred_pgd <- lvmmrPQL::predict_lvmmr(X = X_new,
                                           Beta = fit_pgd$Beta,
                                           sigma = sqrt(diag(fit_pgd$Sigma)),
                                           type = type,
-                                          num_nodes = 15))^2)),
-sqrt(colMeans((Y_new - pred_GLM)^2)))
-rownames(RMSE) <- c("Trust region", "PGD", "GLM")
+                                          num_nodes = 15)
+pred_diag <- lvmmrPQL::predict_lvmmr(X = X_new,
+                                          Beta = fit_diag$Beta,
+                                          sigma = sqrt(diag(fit_diag$Sigma)),
+                                          type = type,
+                                          num_nodes = 15)
+pred_oracle <- lvmmrPQL::predict_lvmmr(X = X_new,
+                                          Beta = Beta_true,
+                                          sigma = sqrt(diag(Sigma_true)),
+                                          type = type,
+                                          num_nodes = 15)
+
+get_rmse <- function(x){sqrt(colMeans((x - Y_new)^2))}
+RMSE <- rbind(get_rmse(pred_trust), get_rmse(pred_pgd), get_rmse(pred_diag), 
+      get_rmse(pred_GLM))
+RMSE <- t(t(RMSE) / get_rmse(pred_oracle))
+rownames(RMSE) <- c("Trust region", "PGD", "Diag.", "GLM")
 RMSE
 ```
 

@@ -37,7 +37,7 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
   r <- ncol(Y)
 
   # Set lower limit on eigenvalues for stability
-  e_S <- eigen(Sigma)
+  e_S <- eigen(Sigma, symmetric = TRUE)
   e_S$values <- pmax(e_S$values, sqrt(.Machine$double.eps))
 
   # Replace by "inverse"

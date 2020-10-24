@@ -174,7 +174,9 @@ lvmmr_PQL <- function(Y, X, type,
     } # End inner loop
 
     # Update W
-    pen <- ifelse(missing(w_pen), max(abs(eigen(new_Sigma)$val)), w_pen)
+    pen <- ifelse(missing(w_pen),
+                  max(abs(eigen(new_Sigma, only.values = TRUE)$val)),
+                  w_pen)
     W <- update_W(Y = Y, X = X, W = W, Beta = new_Beta, Sigma = new_Sigma,
                     psi = psi, type = type, tol = tol[4],
                     maxit = maxit[4], quiet = quiet[4],
@@ -201,7 +203,7 @@ lvmmr_PQL <- function(Y, X, type,
     Sigma <- new_Sigma
   } # End outer loop
   return(list(Beta = unname(Beta), Sigma = Sigma, W = W, iter = out_iter,
-              change = change))
+              change = change, obj = end_obj,
+              X = X, Y = Y, M = M, type = type, psi = psi))
 }
-
 

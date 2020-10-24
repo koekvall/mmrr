@@ -108,7 +108,7 @@ sum(mvtnorm::dmvnorm(x = Y - predict(fit_MLE), sigma = Sigma_MLE +
 # Example with mixed-type responses
 ```{r}
 set.seed(40)
-n <- 50
+n <- 30
 type <- c(1, 2, 3)
 r <- length(type)
 
@@ -119,7 +119,7 @@ X <- matrix(0, nrow= n * r, ncol = r * ( p + 1))
 counter <- 1
 for(jj in 1:n){
   for(kk in 1:r){
-    X[counter, ((kk-1)*(p+1) + 1):(kk*(p+1))] <- c(1, runif(p, -1, 1))
+    X[counter, ((kk - 1) * (p + 1) + 1):(kk * (p + 1))] <- c(1, runif(p, -1, 1))
     counter <- counter + 1
   }
 }
@@ -202,7 +202,7 @@ Beta_GLM <- apply(uni_coefs, 1, mean, na.rm = T)
 Xb_GLM <- matrix(X_new %*% Beta_GLM, nrow = n_pred, ncol = r, byrow = T)
 pred_GLM <- t(lvmmrPQL:::get_cumulant_diffs(t(Xb_GLM), type, 1))
 
-# We win (sometimes and often small).
+# We win.
 pred_trust <- lvmmrPQL::predict_lvmmr(X = X_new,
                                           Beta = fit_trust$Beta,
                                           sigma = sqrt(diag(fit_trust$Sigma)),
@@ -230,5 +230,61 @@ RMSE <- rbind(get_rmse(pred_trust), get_rmse(pred_pgd), get_rmse(pred_diag),
 RMSE <- t(t(RMSE) / get_rmse(pred_oracle))
 rownames(RMSE) <- c("Trust", "PGD", "Indep.", "GLM")
 RMSE
+```
+
+# Testing
+
+We first check that the test has approximately correct size for normal responses, in which case the test should be asymptotically correct since the PQL approximation of the likelihood function is exact.
+
+```{r}
+set.seed(4)
+n <- 1000
+type <- rep(1, 2) # Only normal responses
+r <- length(type)
+
+# Each observation has its own intercept
+X <- Matrix::kronecker(rep(1, n), diag(r))
+
+# Null hypothesis: Beta[1] = 0
+X_null <- X[, 2, drop = F]
+
+# Null is true
+Beta_true <- rep(0, r)
+
+# Variance parameters, psi treated as known, null is true
+Sigma_true <- diag(0.5, r)
+psi_true <- rep(0.5, r)
+
+
+do_test_experiment <- function(xxx){
+Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
+                    type = type, psi = psi_true)
+# No restrictions with normal responses
+M <- matrix(NA, r, r)
+
+fit_full <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+                           relative = T,
+                           quiet = c(T, T, T, T),
+                           maxit = c(100, 100, 500, 0),
+                           tol = c(1e-12, 1e-8, 1e-10, 1e-8),
+                           psi = psi_true,
+                           pgd = FALSE)
+# Null model no intercept for first obs
+fit_null <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X_null, type = type, M = M,
+                           relative = T,
+                           quiet = c(T, T, T, T),
+                           maxit = c(100, 100, 500, 0),
+                           tol = c(1e-12, 1e-8, 1e-10, 1e-8),
+                           psi = psi_true,
+                           pgd = FALSE,
+                           Beta = fit_full$Beta[2],
+                           Sigma = fit_full$Sigma)
+p_val <- pchisq(q = lvmmrPQL:::lrt(fit_null = fit_null, fit_full = fit_full),
+              df = 1, lower.tail = FALSE)
+return(p_val)
+}
+
+cl <- makeCluster(getOption("cl.cores", 6))
+p_vals <-parSapply(cl, 1:1000, do_test_experiment)
 ```
 

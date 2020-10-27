@@ -4,6 +4,7 @@
 #' @param X An nr x p matrix of predictors.
 #' @param type An r-vector indicating response types: 1 means normal, 2 means
 #'   Bernoulli, and 3 means Poisson.
+#' @param psi An r-vector of variance parameters.
 #' @param M An r x r matrix with restrictions, with NA for unrestricted.
 #' @param tol A 4-vector with tolerances for termination of: [1] overall
 #'    algorithm, [2] update of Beta and Sigma with W fixed, [3] update
@@ -25,25 +26,68 @@
 #' @param W An n x r initial iterate for the expansion points.
 #'    Is set to matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE) if not
 #'    supplied.
-#' @param psi An r-vector of variance parameters.
 #' @param w_pen Ridge penalty in W update; often useful to avoid overflows.
 #'   Defaults to largest eigenvalue of current Sigma iterate if not supplied.
-#' @return A list of final iterates
+#' @param uni_X_cols List of length r whose ith element is a vector with
+#'   column numbers of X corresponding to the ith response. If supplied,
+#'   r separate models are fit.
+#' @return A list of final iterates and other information about the fit.
 #' @useDynLib lvmmrPQL, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
 #' @importFrom Rcpp evalCpp
 #' @export
 #' @export
-lvmmr_PQL <- function(Y, X, type,
-                      M = matrix(NA, nrow = nrow(Sigma), ncol = ncol(Sigma)),
-                      tol = rep(1e-8, 4), maxit = rep(1e2, 4),
-                      quiet = rep(TRUE, 4), relative = TRUE, pgd = FALSE,
-                      eps = 0, Beta, Sigma, W, psi = rep(1, ncol(Y)), w_pen)
+lvmmr_PQL <- function(Y,
+                      X,
+                      type,
+                      psi = rep(1, ncol(Y)),
+                      M = matrix(NA, nrow = ncol(Y), ncol = ncol(Y)),
+                      tol = rep(1e-8, 4),
+                      maxit = rep(1e2, 4),
+                      quiet = rep(TRUE, 4),
+                      relative = TRUE,
+                      pgd = FALSE,
+                      eps = 0,
+                      Beta,
+                      Sigma,
+                      W,
+                      w_pen,
+                      uni_X_cols)
 {
+  # Do argument validation
+  Y <- as.matrix(Y)
+  X <- as.matrix(X)
+  stopifnot(nrow(X) == (nrow(Y) * ncol(Y)),
+            is.numeric(type), length(type) == ncol(Y),
+            is.matrix(M), ncol(M) == ncol(Y), nrow(M) == ncol(Y),
+            is.numeric(tol), length(tol) == 4,
+            is.numeric(maxit), length(maxit) == 4,
+            is.logical(quiet), length(quiet) == 4,
+            is.logical(relative), length(relative) == 1,
+            is.logical(pgd), length(pgd) == 1,
+            is.numeric(eps), length(eps) == 1
+            )
   # Define constants
   n <- nrow(Y)
   r <- ncol(Y)
   p <- ncol(X)
+
+  # Continue argument validation
+  if(!missing(Beta))stopifnot(is.numeric(Beta) & length(Beta) == p)
+  if(!missing(Sigma)) stopifnot(is.matrix(Sigma),
+                                ncol(Sigma) == r,
+                                nrow(Sigma) == r)
+  if(!missing(W)) stopifnot(is.matrix(W),
+                            ncol(W) == r,
+                            nrow(W) == n)
+  if(!missing(w_pen)) stopifnot(is.numeric(w_pen),
+                                length(w_pen) ==1)
+  if(!missing(uni_X_cols)) stopifnot(is.list(uni_X_cols),
+                                     length(uni_X_cols) == r,
+                                     sum(unique(unlist(uni_X_cols)) %in% 1:p)
+                                      == p)
+
+
 
   # Check that model matrix has full rank
   if(qr(X)$rank != p) warning("X does not have full column rank.")
@@ -54,7 +98,7 @@ lvmmr_PQL <- function(Y, X, type,
     M[upper.tri(M)] <- t(M)[upper.tri(M)]
   }
 
-  # Check that Sigma update is needed
+  # Check if Sigma update is needed
   if(all(!is.na(M))){
     message("Skipping Sigma update because all elements constrained.")
     maxit[3] <- 0
@@ -90,6 +134,39 @@ lvmmr_PQL <- function(Y, X, type,
   if(missing(W)) W <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE)
 
   if(missing(Sigma)) Sigma <- diag(1e-3, r) # For small var, model approx. GLM
+
+  # Fit univariate models if requested
+  if(!missing(uni_X_cols) & (r > 1)){
+    Sigma <- diag(diag(Sigma), r)
+    for(ii in 1:r){
+      Xi <- X[seq(ii, n * r, r), uni_X_cols[[ii]], drop = F]
+      Yi <- Y[, ii, drop = F]
+      fit_uni <- lvmmrPQL::lvmmr_PQL(Y = Yi,
+                                     X = Xi,
+                                     type = type[ii],
+                                     M = M[ii, ii, drop = F],
+                                     relative = relative,
+                                     quiet = quiet,
+                                     maxit = maxit,
+                                     tol = tol,
+                                     psi = psi[ii],
+                                     pgd = pgd,
+                                     Beta = Beta[uni_X_cols[[ii]]],
+                                     Sigma = Sigma[ii, ii, drop = F],
+                                     W = W[, ii, drop = F])
+      Beta[uni_X_cols[[ii]]] <- fit_uni$Beta
+      Sigma[ii, ii] <- fit_uni$Sigma
+      W[, ii] <- fit_uni$W
+    }
+    D1 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 1))
+    D2 <- t(get_cumulant_diffs(W_T = t(W), type = type, order = 2))
+    end_obj <- -working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = Beta,
+                                Sigma = Sigma, W_T = t(W), psi = psi,
+                                D1_T = t(D1), D2_T = t(D2))
+    return(list(Beta = unname(Beta), Sigma = Sigma, W = W, iter = NULL,
+                change = NULL, obj = end_obj,
+                X = X, Y = Y, M = M, type = type, psi = psi))
+  }
 
   out_iter <- 0
   iterate_outer <- out_iter < maxit[1] # Iterate updating (Beta, Sigma) and W

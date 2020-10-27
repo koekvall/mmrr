@@ -8,7 +8,8 @@ lvmmr_PQL(
   Y,
   X,
   type,
-  M = matrix(NA, nrow = nrow(Sigma), ncol = ncol(Sigma)),
+  psi = rep(1, ncol(Y)),
+  M = matrix(NA, nrow = ncol(Y), ncol = ncol(Y)),
   tol = rep(1e-08, 4),
   maxit = rep(100, 4),
   quiet = rep(TRUE, 4),
@@ -18,8 +19,8 @@ lvmmr_PQL(
   Beta,
   Sigma,
   W,
-  psi = rep(1, ncol(Y)),
-  w_pen
+  w_pen,
+  uni_X_cols
 )
 }
 \arguments{
@@ -29,6 +30,8 @@ lvmmr_PQL(
 
 \item{type}{An r-vector indicating response types: 1 means normal, 2 means
 Bernoulli, and 3 means Poisson.}
+
+\item{psi}{An r-vector of variance parameters.}
 
 \item{M}{An r x r matrix with restrictions, with NA for unrestricted.}
 
@@ -61,13 +64,15 @@ Is set to diag(1e-3, ncol(Y)) if not supplied.}
 Is set to matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE) if not
 supplied.}
 
-\item{psi}{An r-vector of variance parameters.}
-
 \item{w_pen}{Ridge penalty in W update; often useful to avoid overflows.
 Defaults to largest eigenvalue of current Sigma iterate if not supplied.}
+
+\item{uni_X_cols}{List of length r whose ith element is a vector with
+column numbers of X corresponding to the ith response. If supplied,
+r separate models are fit.}
 }
 \value{
-A list of final iterates
+A list of final iterates and other information about the fit.
 }
 \description{
 Fit Latent Variables Mixed-type Multivariate Regression by PQL

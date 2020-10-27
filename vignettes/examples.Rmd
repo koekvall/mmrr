@@ -232,59 +232,62 @@ rownames(RMSE) <- c("Trust", "PGD", "Indep.", "GLM")
 RMSE
 ```
 
-# Testing
+<!-- # Testing -->
 
-We first check that the test has approximately correct size for normal responses, in which case the test should be asymptotically correct since the PQL approximation of the likelihood function is exact.
+<!-- We first check that the test has approximately correct size for normal responses, in which case the test should be asymptotically correct since the PQL approximation of the likelihood function is exact. -->
 
-```{r}
-set.seed(4)
-n <- 1000
-type <- rep(1, 2) # Only normal responses
-r <- length(type)
+<!-- ```{r} -->
+<!-- library(parallel) -->
+<!-- do_test_experiment <- function(xxx){ -->
+<!--   set.seed(xxx) -->
+<!--   n <- 100 -->
+<!--   type <- c(1, 3) -->
+<!--   r <- length(type) -->
 
-# Each observation has its own intercept
-X <- Matrix::kronecker(rep(1, n), diag(r))
+<!--   # Each observation has its own intercept -->
+<!--   X <- Matrix::kronecker(rep(1, n), diag(r)) -->
+<!--   Beta_true <- seq(-0.5, 0.5, length.out = r) -->
 
-# Null hypothesis: Beta[1] = 0
-X_null <- X[, 2, drop = F]
+<!--   # H0 -->
+<!--   #Sigma_true <- diag(1, r) -->
+<!--   # HA -->
+<!--   Sigma_true <- matrix(0.5, r, r) -->
+<!--   diag(Sigma_true) <- 1 -->
+<!--   psi_true <- rep(0.1, r) -->
 
-# Null is true
-Beta_true <- rep(0, r)
-
-# Variance parameters, psi treated as known, null is true
-Sigma_true <- diag(0.5, r)
-psi_true <- rep(0.5, r)
+<!--   Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true), -->
+<!--                       type = type, psi = psi_true) -->
 
 
-do_test_experiment <- function(xxx){
-Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
-                    type = type, psi = psi_true)
-# No restrictions with normal responses
-M <- matrix(NA, r, r)
+<!-- MU <- diag(NA, r, r) -->
+<!-- diag(MU)[type == 2] <-1 -->
+<!-- # Null model no intercept for first obs -->
+<!-- fit_null <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = MU, -->
+<!--                            relative = T, -->
+<!--                            quiet = c(T, T, T, T), -->
+<!--                            maxit = c(100, 100, 500, 100), -->
+<!--                            tol = c(1e-12, 1e-8, 1e-10, 1e-8), -->
+<!--                            psi = psi_true, -->
+<!--                            pgd = FALSE) -->
+<!-- MR <- matrix(NA, r, r) -->
+<!-- diag(MR)[type == 2] <-1 -->
+<!-- fit_full <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = MR, -->
+<!--                            relative = T, -->
+<!--                            quiet = c(T, T, T, T), -->
+<!--                            maxit = c(100, 100, 500, 0), -->
+<!--                            tol = c(1e-12, 1e-8, 1e-10, 1e-8), -->
+<!--                            psi = psi_true, -->
+<!--                            Beta = fit_null$Beta, -->
+<!--                            Sigma = fit_null$Sigma, -->
+<!--                            W = fit_null$W, -->
+<!--                            pgd = FALSE) -->
+<!-- df <- sum(is.na(MR[lower.tri(MR, diag = T)])) - sum(is.na(MU[lower.tri(MR, diag = T)]))  -->
+<!-- p_val <- pchisq(q = -2 * (fit_full$obj - fit_null$obj), -->
+<!--               df = df, lower.tail = FALSE) -->
+<!-- return(p_val) -->
+<!-- } -->
 
-fit_full <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
-                           relative = T,
-                           quiet = c(T, T, T, T),
-                           maxit = c(100, 100, 500, 0),
-                           tol = c(1e-12, 1e-8, 1e-10, 1e-8),
-                           psi = psi_true,
-                           pgd = FALSE)
-# Null model no intercept for first obs
-fit_null <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X_null, type = type, M = M,
-                           relative = T,
-                           quiet = c(T, T, T, T),
-                           maxit = c(100, 100, 500, 0),
-                           tol = c(1e-12, 1e-8, 1e-10, 1e-8),
-                           psi = psi_true,
-                           pgd = FALSE,
-                           Beta = fit_full$Beta[2],
-                           Sigma = fit_full$Sigma)
-p_val <- pchisq(q = lvmmrPQL:::lrt(fit_null = fit_null, fit_full = fit_full),
-              df = 1, lower.tail = FALSE)
-return(p_val)
-}
-
-cl <- makeCluster(getOption("cl.cores", 6))
-p_vals <-parSapply(cl, 1:1000, do_test_experiment)
-```
+<!-- cl <- makeCluster(getOption("cl.cores", 8)) -->
+<!-- p_vals <-parSapply(cl, 1:1000, do_test_experiment) -->
+<!-- ``` -->
 

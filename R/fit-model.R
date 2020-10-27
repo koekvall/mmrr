@@ -1,11 +1,12 @@
 #' Fit Latent Variables Mixed-type Multivariate Regression by PQL
 #'
 #' @param Y An n x r matrix of responses.
-#' @param X An nr x p matrix of predictors.
-#' @param type An r-vector indicating response types: 1 means normal, 2 means
-#'   Bernoulli, and 3 means Poisson.
-#' @param psi An r-vector of variance parameters.
-#' @param M An r x r matrix with restrictions, with NA for unrestricted.
+#' @param X An nr x p matrix of predictors or a list of length r whose ith
+#'   element is an n x p_i design matrix for the ith response.
+#' @param type An r-vector indicating response types: 1 means Normal, 2 means
+#'    Bernoulli, and 3 means (quasi-)Poisson.
+#' @param psi An r-vector of conditional variance parameters.
+#' @param M An r x r matrix with restrictions for Sigma, with NA for unrestricted.
 #' @param tol A 4-vector with tolerances for termination of: [1] overall
 #'    algorithm, [2] update of Beta and Sigma with W fixed, [3] update
 #'    of Sigma, and [4] update of W.
@@ -15,12 +16,17 @@
 #'   same steps as the tol vector.
 #' @param relative If TRUE, use relative decrease of parameters to determine
 #'   convergence, otherwise use absolute.
-#' @param pgd If TRUE, use projected gradient descent; gives PD Sigma estimate.
-#'   W[ii, ] = u + Xb[ii, ], for an u that does not depend on i.
+#' @param pgd If TRUE, use projected gradient descent; ensures SPSD Sigma.
 #' @param eps Lower bound for the smallest eigenvalue of Sigma, only used if
 #'   pgd = TRUE.
-#' @param Beta Initial iterate of regression coefficient vector.
-#'    Is obtained by fitting separate GLMs if not supplied.
+#' @param uni_fit If TRUE, fit r separate models. This requires (i) X is
+#'    a list or (ii) X is a matrix and r is a divisor of p. If (ii), it is
+#'    assumed that the first p / r columns of X correspond to the first
+#'    response, and so on.
+#' @param Beta Initial iterate of regression coefficient vector. Either
+#'    a p-vector or a list of length r, where each element is the
+#'    coefficient vector for the ith response. Is obtained by fitting separate
+#'    GLMs if not supplied.
 #' @param Sigma An r x r initial iterate for the latent covariance matrix.
 #'    Is set to diag(1e-3, ncol(Y)) if not supplied.
 #' @param W An n x r initial iterate for the expansion points.
@@ -28,14 +34,10 @@
 #'    supplied.
 #' @param w_pen Ridge penalty in W update; often useful to avoid overflows.
 #'   Defaults to largest eigenvalue of current Sigma iterate if not supplied.
-#' @param uni_X_cols List of length r whose ith element is a vector with
-#'   column numbers of X corresponding to the ith response. If supplied,
-#'   r separate models are fit.
 #' @return A list of final iterates and other information about the fit.
 #' @useDynLib lvmmrPQL, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
 #' @importFrom Rcpp evalCpp
-#' @export
 #' @export
 lvmmr_PQL <- function(Y,
                       X,
@@ -48,18 +50,45 @@ lvmmr_PQL <- function(Y,
                       relative = TRUE,
                       pgd = FALSE,
                       eps = 0,
+                      uni_fit = FALSE,
                       Beta,
                       Sigma,
                       W,
-                      w_pen,
-                      uni_X_cols)
+                      w_pen)
 {
   # Do argument validation
-  Y <- as.matrix(Y)
-  X <- as.matrix(X)
-  stopifnot(nrow(X) == (nrow(Y) * ncol(Y)),
-            is.numeric(type), length(type) == ncol(Y),
-            is.matrix(M), ncol(M) == ncol(Y), nrow(M) == ncol(Y),
+  stopifnot(is.matrix(Y))
+  r <- ncol(Y)
+  n <- nrow(Y)
+
+  stopifnot(is.list(X) | is.matrix(X))
+  if(is.list(X)){
+    stopifnot(length(X) == ncol(Y),
+              all(sapply(X, is.matrix)),
+              all(sapply(X, nrow) == nrow(Y)))
+    X_list <- X
+    n_pred <- sapply(X_list, ncol)
+    X <- as.matrix(Matrix::bdiag(X_list))
+  }
+  p <- ncol(X)
+
+  # Create list for univariate fitting if it does not exist
+  if(uni_fit & !exists("X_list") & r > 1){
+    pii <- p / r
+    if(pii != floor(pii)){
+      stop("Cannot create list of design matrices for univariate fitting
+            because r does not divide p.")
+    }
+    X_list <- list()
+    for(ii in 1:r){
+      X_list[[ii]] <- X[seq(ii, n * r, r), seq((ii - 1) * pii + 1,
+                                               length.out = pii)]
+    }
+    n_pred <- sapply(X_list, ncol)
+  }
+  stopifnot(nrow(X) == (n * r),
+            is.numeric(type), length(type) == r,
+            is.matrix(M), ncol(M) == r, nrow(M) == r,
             is.numeric(tol), length(tol) == 4,
             is.numeric(maxit), length(maxit) == 4,
             is.logical(quiet), length(quiet) == 4,
@@ -67,13 +96,8 @@ lvmmr_PQL <- function(Y,
             is.logical(pgd), length(pgd) == 1,
             is.numeric(eps), length(eps) == 1
             )
-  # Define constants
-  n <- nrow(Y)
-  r <- ncol(Y)
-  p <- ncol(X)
 
   # Continue argument validation
-  if(!missing(Beta))stopifnot(is.numeric(Beta) & length(Beta) == p)
   if(!missing(Sigma)) stopifnot(is.matrix(Sigma),
                                 ncol(Sigma) == r,
                                 nrow(Sigma) == r)
@@ -82,10 +106,6 @@ lvmmr_PQL <- function(Y,
                             nrow(W) == n)
   if(!missing(w_pen)) stopifnot(is.numeric(w_pen),
                                 length(w_pen) ==1)
-  if(!missing(uni_X_cols)) stopifnot(is.list(uni_X_cols),
-                                     length(uni_X_cols) == r,
-                                     sum(unique(unlist(uni_X_cols)) %in% 1:p)
-                                      == p)
 
 
 
@@ -130,17 +150,26 @@ lvmmr_PQL <- function(Y,
     }
     Beta <- apply(uni_coefs, 1, mean, na.rm = T) # Can also weight by SE
   }
+  stopifnot(is.list(Beta) | is.numeric(Beta))
+  if(is.list(Beta)){
+    stopifnot(length(Beta) == r,
+              all(sapply(Beta, is.numeric)),
+              sum(sapply(Beta, length)) == p)
+    Beta <- unlist(Beta)
+  }
 
   if(missing(W)) W <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = TRUE)
 
   if(missing(Sigma)) Sigma <- diag(1e-3, r) # For small var, model approx. GLM
 
   # Fit univariate models if requested
-  if(!missing(uni_X_cols) & (r > 1)){
+  if(uni_fit & r > 1){
     Sigma <- diag(diag(Sigma), r)
     for(ii in 1:r){
-      Xi <- X[seq(ii, n * r, r), uni_X_cols[[ii]], drop = F]
+      Xi <- X_list[[ii]]
       Yi <- Y[, ii, drop = F]
+      beta_idx <- seq(cumsum(n_pred)[ii] - n_pred[ii] + 1,
+                      length.out = n_pred[ii])
       fit_uni <- lvmmrPQL::lvmmr_PQL(Y = Yi,
                                      X = Xi,
                                      type = type[ii],
@@ -151,10 +180,10 @@ lvmmr_PQL <- function(Y,
                                      tol = tol,
                                      psi = psi[ii],
                                      pgd = pgd,
-                                     Beta = Beta[uni_X_cols[[ii]]],
+                                     Beta = Beta[beta_idx],
                                      Sigma = Sigma[ii, ii, drop = F],
                                      W = W[, ii, drop = F])
-      Beta[uni_X_cols[[ii]]] <- fit_uni$Beta
+      Beta[beta_idx] <- fit_uni$Beta
       Sigma[ii, ii] <- fit_uni$Sigma
       W[, ii] <- fit_uni$W
     }
@@ -197,7 +226,7 @@ lvmmr_PQL <- function(Y,
                                     Sigma = new_Sigma, W_T = t(W), psi = psi,
                                     D1_T = t(D1), D2_T = t(D2))
       # Update Sigma
-      R <- matrix(X %*% new_Beta, nrow = n, ncol = r, byrow = T) # called Xb elsewhere
+      R <- matrix(X %*% new_Beta, nrow = n, ncol = r, byrow = T)
       R <- D1 + D2 * (R - W)
       R <- Y - R
       if(pgd){
@@ -228,8 +257,8 @@ lvmmr_PQL <- function(Y,
       }
 
       # Update Beta
-      new_Beta <- update_beta(Y = Y, X = X, W = W, Sigma = new_Sigma, psi = psi,
-                              type = type)
+      new_Beta <- update_beta(Y = Y, X = X, W = W, Sigma = new_Sigma,
+                              psi = psi, type = type)
 
       # Track progress of Beta and Sigma update
       end_obj <- -working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = new_Beta,

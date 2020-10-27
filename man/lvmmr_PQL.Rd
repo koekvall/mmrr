@@ -16,24 +16,25 @@ lvmmr_PQL(
   relative = TRUE,
   pgd = FALSE,
   eps = 0,
+  uni_fit = FALSE,
   Beta,
   Sigma,
   W,
-  w_pen,
-  uni_X_cols
+  w_pen
 )
 }
 \arguments{
 \item{Y}{An n x r matrix of responses.}
 
-\item{X}{An nr x p matrix of predictors.}
+\item{X}{An nr x p matrix of predictors or a list of length r whose ith
+element is an n x p_i design matrix for the ith response.}
 
-\item{type}{An r-vector indicating response types: 1 means normal, 2 means
-Bernoulli, and 3 means Poisson.}
+\item{type}{An r-vector indicating response types: 1 means Normal, 2 means
+Bernoulli, and 3 means (quasi-)Poisson.}
 
-\item{psi}{An r-vector of variance parameters.}
+\item{psi}{An r-vector of conditional variance parameters.}
 
-\item{M}{An r x r matrix with restrictions, with NA for unrestricted.}
+\item{M}{An r x r matrix with restrictions for Sigma, with NA for unrestricted.}
 
 \item{tol}{A 4-vector with tolerances for termination of: [1] overall
 algorithm, [2] update of Beta and Sigma with W fixed, [3] update
@@ -48,14 +49,20 @@ same steps as the tol vector.}
 \item{relative}{If TRUE, use relative decrease of parameters to determine
 convergence, otherwise use absolute.}
 
-\item{pgd}{If TRUE, use projected gradient descent; gives PD Sigma estimate.
-W[ii, ] = u + Xb[ii, ], for an u that does not depend on i.}
+\item{pgd}{If TRUE, use projected gradient descent; ensures SPSD Sigma.}
 
 \item{eps}{Lower bound for the smallest eigenvalue of Sigma, only used if
 pgd = TRUE.}
 
-\item{Beta}{Initial iterate of regression coefficient vector.
-Is obtained by fitting separate GLMs if not supplied.}
+\item{uni_fit}{If TRUE, fit r separate models. This requires (i) X is
+a list or (ii) X is a matrix and r is a divisor of p. If (ii), it is
+assumed that the first p / r columns of X correspond to the first
+response, and so on.}
+
+\item{Beta}{Initial iterate of regression coefficient vector. Either
+a p-vector or a list of length r, where each element is the
+coefficient vector for the ith response. Is obtained by fitting separate
+GLMs if not supplied.}
 
 \item{Sigma}{An r x r initial iterate for the latent covariance matrix.
 Is set to diag(1e-3, ncol(Y)) if not supplied.}
@@ -66,10 +73,6 @@ supplied.}
 
 \item{w_pen}{Ridge penalty in W update; often useful to avoid overflows.
 Defaults to largest eigenvalue of current Sigma iterate if not supplied.}
-
-\item{uni_X_cols}{List of length r whose ith element is a vector with
-column numbers of X corresponding to the ith response. If supplied,
-r separate models are fit.}
 }
 \value{
 A list of final iterates and other information about the fit.

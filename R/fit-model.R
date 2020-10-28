@@ -35,26 +35,26 @@
 #' @param w_pen Ridge penalty in W update; often useful to avoid overflows.
 #'   Defaults to largest eigenvalue of current Sigma iterate if not supplied.
 #' @return A list of final iterates and other information about the fit.
-#' @useDynLib lvmmrPQL, .registration = TRUE
+#' @useDynLib lvmmr, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
 #' @importFrom Rcpp evalCpp
 #' @export
-lvmmr_PQL <- function(Y,
-                      X,
-                      type,
-                      psi = rep(1, ncol(Y)),
-                      M = matrix(NA, nrow = ncol(Y), ncol = ncol(Y)),
-                      tol = rep(1e-8, 4),
-                      maxit = rep(1e2, 4),
-                      quiet = rep(TRUE, 4),
-                      relative = TRUE,
-                      pgd = FALSE,
-                      eps = 0,
-                      uni_fit = FALSE,
-                      Beta,
-                      Sigma,
-                      W,
-                      w_pen)
+lvmmr <- function(Y,
+                  X,
+                  type,
+                  psi = rep(1, ncol(Y)),
+                  M = matrix(NA, nrow = ncol(Y), ncol = ncol(Y)),
+                  tol = rep(1e-8, 4),
+                  maxit = rep(1e2, 4),
+                  quiet = rep(TRUE, 4),
+                  relative = TRUE,
+                  pgd = FALSE,
+                  eps = 0,
+                  uni_fit = FALSE,
+                  Beta,
+                  Sigma,
+                  W,
+                  w_pen)
 {
   #############################################################################
   # Argument validation and preparations
@@ -174,7 +174,7 @@ lvmmr_PQL <- function(Y,
       Yi <- Y[, ii, drop = F]
       beta_idx <- seq(cumsum(n_pred)[ii] - n_pred[ii] + 1,
                       length.out = n_pred[ii])
-      fit_uni <- lvmmrPQL::lvmmr_PQL(Y = Yi,
+      fit_uni <- lvmmr::lvmmr(Y = Yi,
                                      X = Xi,
                                      type = type[ii],
                                      M = M[ii, ii, drop = F],

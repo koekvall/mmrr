@@ -15,7 +15,7 @@ lrt_approx <- function(fit_null, fit_full, df, ...)
   fit_new <- lvmmr(Y = fit_full$Y, X = fit_full$X, type = fit_full$type,
                    psi = fit_full$psi, M = fit_full$M, maxit = c(10, 500, 500, 0),
                    Beta = fit_null$Beta, Sigma = fit_null$Sigma,
-                   W = fit_null$Sigma, ...)
+                   W = fit_null$W, ...)
   if(missing(df)){
     df <- ncol(fit_full$X) - ncol(fit_null$X)
     df <- df + sum(is.na(fit_full$M[upper.tri(fit_full$M, diag = TRUE)]))

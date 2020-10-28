@@ -13,7 +13,8 @@ vignette: >
 The package can be installed from GitHub, using devtools.
 
 ```{r}
-  # devtools::install_github("koekvall/lvmmrPQL") 
+  # devtools::install_github("koekvall/lvmmr")
+library(lvmmr)
 ```
 
 
@@ -36,7 +37,7 @@ Beta_true <- (1:r) / r
 Sigma_true <- 0.5^abs(outer(1:r, 1:r, FUN = "-"))
 psi_true <- rep(0.5, r)
 
-Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
+Y <- generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
 # No restrictions with normal responses
 M <- matrix(NA, r, r)
@@ -53,7 +54,7 @@ min(eigen(Sigma_MLE)$values)
 # Skip W update; obj. fun, does not depend on W with mult. norm. resp.
 # MLE of Beta does not depend on Sigma, so expect correct MLE for Beta
 # regardless of whether algorithm finds MLE of Sigma.
-fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+fit <- lvmmr(Y = Y, X = X, type = type, M = M,
                            relative = T,
                            quiet = c(T, T, T, T),
                            maxit = c(100, 100, 500, 0),
@@ -66,7 +67,7 @@ fit$Sigma - Sigma_MLE
 
 
 # With MLE as starting value
-fit <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+fit <- lvmmr(Y = Y, X = X, type = type, M = M,
                            relative = T,
                            quiet = c(F, T, T, T),
                            maxit = c(100, 100, 500, 0),
@@ -81,15 +82,15 @@ fit$Beta - Beta_MLE
 fit$Sigma - Sigma_MLE
 
 # See that objective is correct
-D1 <- t(lvmmrPQL:::get_cumulant_diffs(t(fit$W), type, 1))
-D2 <- t(lvmmrPQL:::get_cumulant_diffs(t(fit$W), type, 2))
+D1 <- t(lvmmr:::get_cumulant_diffs(t(fit$W), type, 1))
+D2 <- t(lvmmr:::get_cumulant_diffs(t(fit$W), type, 2))
 
-lvmmrPQL:::working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = fit$Beta,
+lvmmr:::working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = fit$Beta,
                                   Sigma = fit$Sigma, W_T = t(fit$W),
                                   psi = psi_true,
                                   D1_T = t(D1), D2_T = t(D2))
 
-lvmmrPQL:::working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = Beta_MLE,
+lvmmr:::working_ll_rcpp(Y_T = t(Y), X_T = t(X), beta = Beta_MLE,
                                   Sigma = Sigma_MLE, W_T = t(fit$W),
                                   psi = psi_true,
                                   D1_T = t(D1), D2_T = t(D2))
@@ -133,22 +134,33 @@ Sigma_true <- 0.1 * Sigma_true
 psi_true <- rep(1e-7, r)
 psi_true[type == 2] <- 1 # Bernoulli does not support psi
 
-Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
+Y <- generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
 # No restrictions with normal and Poisson responses
 M <- matrix(NA, r, r)
 diag(M)[type == 2] <- 1
 
-
-fit_trust <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+fit_uni <- lvmmr(Y = Y, X = X, type = type, M = M,
                            relative = FALSE,
                            quiet = c(F, T, T, T),
                            maxit = c(50, 100, 500, 100),
                            tol = c(1e-5, 1e-7, 1e-10, 1e-8),
                            psi = psi_true,
-                           pgd = FALSE)
+                           pgd = FALSE,
+                           uni_fit = TRUE)
+
+fit_trust <- lvmmr(Y = Y, X = X, type = type, M = M,
+                           relative = FALSE,
+                           quiet = c(F, T, T, T),
+                           maxit = c(50, 100, 500, 100),
+                           tol = c(1e-5, 1e-7, 1e-10, 1e-8),
+                           psi = psi_true,
+                           pgd = FALSE,
+                           Beta = fit_uni$Beta,
+                           Sigma = fit_uni$Sigma,
+                           W = fit_uni$W)
 # Use starting values
-fit_pgd <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+fit_pgd <- lvmmr(Y = Y, X = X, type = type, M = M,
                            relative = FALSE,
                            quiet = c(F, F, F, T),
                            maxit = c(50, 100, 500, 100),
@@ -162,16 +174,16 @@ fit_pgd <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
 # Diagonal
 M <- diag(NA, r)
 diag(M)[type == 2] <- 1
-fit_diag <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = M,
+fit_diag <- lvmmr(Y = Y, X = X, type = type, M = M,
                            relative = FALSE,
                            quiet = c(F, T, T, T),
                            maxit = c(50, 100, 500, 100),
                            tol = c(1e-5, 1e-7, 1e-10, 1e-8),
                            psi = psi_true,
                            pgd = TRUE,
-                           Beta = fit_trust$Beta,
-                           Sigma = diag(diag(fit_trust$Sigma), r),
-                           W = fit_trust$W)
+                           Beta = fit_uni$Beta,
+                           Sigma = fit_uni$Sigma,
+                           W = fit_uni$W)
 
 # Create prediction data
 n_pred <- 1e4
@@ -184,7 +196,7 @@ for(jj in 1:n_pred){
     counter <- counter + 1
   }
 }
-Y_new <- lvmmrPQL::generate_lvmmr(X = X_new, Beta = Beta_true, R = chol(Sigma_true),
+Y_new <- generate_lvmmr(X = X_new, Beta = Beta_true, R = chol(Sigma_true),
                     type = type, psi = psi_true)
 
 # Get GLM Fit
@@ -200,25 +212,25 @@ for(ii in 1:length(unique_types)){
 Beta_GLM <- apply(uni_coefs, 1, mean, na.rm = T)
 
 Xb_GLM <- matrix(X_new %*% Beta_GLM, nrow = n_pred, ncol = r, byrow = T)
-pred_GLM <- t(lvmmrPQL:::get_cumulant_diffs(t(Xb_GLM), type, 1))
+pred_GLM <- t(lvmmr:::get_cumulant_diffs(t(Xb_GLM), type, 1))
 
 # We win.
-pred_trust <- lvmmrPQL::predict_lvmmr(X = X_new,
+pred_trust <- predict_lvmmr(X = X_new,
                                           Beta = fit_trust$Beta,
                                           sigma = sqrt(diag(fit_trust$Sigma)),
                                           type = type,
                                           num_nodes = 15)
-pred_pgd <- lvmmrPQL::predict_lvmmr(X = X_new,
+pred_pgd <- predict_lvmmr(X = X_new,
                                           Beta = fit_pgd$Beta,
                                           sigma = sqrt(diag(fit_pgd$Sigma)),
                                           type = type,
                                           num_nodes = 15)
-pred_diag <- lvmmrPQL::predict_lvmmr(X = X_new,
+pred_diag <- predict_lvmmr(X = X_new,
                                           Beta = fit_diag$Beta,
                                           sigma = sqrt(diag(fit_diag$Sigma)),
                                           type = type,
                                           num_nodes = 15)
-pred_oracle <- lvmmrPQL::predict_lvmmr(X = X_new,
+pred_oracle <- predict_lvmmr(X = X_new,
                                           Beta = Beta_true,
                                           sigma = sqrt(diag(Sigma_true)),
                                           type = type,
@@ -231,63 +243,4 @@ RMSE <- t(t(RMSE) / get_rmse(pred_oracle))
 rownames(RMSE) <- c("Trust", "PGD", "Indep.", "GLM")
 RMSE
 ```
-
-<!-- # Testing -->
-
-<!-- We first check that the test has approximately correct size for normal responses, in which case the test should be asymptotically correct since the PQL approximation of the likelihood function is exact. -->
-
-<!-- ```{r} -->
-<!-- library(parallel) -->
-<!-- do_test_experiment <- function(xxx){ -->
-<!--   set.seed(xxx) -->
-<!--   n <- 100 -->
-<!--   type <- c(1, 3) -->
-<!--   r <- length(type) -->
-
-<!--   # Each observation has its own intercept -->
-<!--   X <- Matrix::kronecker(rep(1, n), diag(r)) -->
-<!--   Beta_true <- seq(-0.5, 0.5, length.out = r) -->
-
-<!--   # H0 -->
-<!--   #Sigma_true <- diag(1, r) -->
-<!--   # HA -->
-<!--   Sigma_true <- matrix(0.5, r, r) -->
-<!--   diag(Sigma_true) <- 1 -->
-<!--   psi_true <- rep(0.1, r) -->
-
-<!--   Y <- lvmmrPQL::generate_lvmmr(X = X, Beta = Beta_true, R = chol(Sigma_true), -->
-<!--                       type = type, psi = psi_true) -->
-
-
-<!-- MU <- diag(NA, r, r) -->
-<!-- diag(MU)[type == 2] <-1 -->
-<!-- # Null model no intercept for first obs -->
-<!-- fit_null <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = MU, -->
-<!--                            relative = T, -->
-<!--                            quiet = c(T, T, T, T), -->
-<!--                            maxit = c(100, 100, 500, 100), -->
-<!--                            tol = c(1e-12, 1e-8, 1e-10, 1e-8), -->
-<!--                            psi = psi_true, -->
-<!--                            pgd = FALSE) -->
-<!-- MR <- matrix(NA, r, r) -->
-<!-- diag(MR)[type == 2] <-1 -->
-<!-- fit_full <- lvmmrPQL::lvmmr_PQL(Y = Y, X = X, type = type, M = MR, -->
-<!--                            relative = T, -->
-<!--                            quiet = c(T, T, T, T), -->
-<!--                            maxit = c(100, 100, 500, 0), -->
-<!--                            tol = c(1e-12, 1e-8, 1e-10, 1e-8), -->
-<!--                            psi = psi_true, -->
-<!--                            Beta = fit_null$Beta, -->
-<!--                            Sigma = fit_null$Sigma, -->
-<!--                            W = fit_null$W, -->
-<!--                            pgd = FALSE) -->
-<!-- df <- sum(is.na(MR[lower.tri(MR, diag = T)])) - sum(is.na(MU[lower.tri(MR, diag = T)]))  -->
-<!-- p_val <- pchisq(q = -2 * (fit_full$obj - fit_null$obj), -->
-<!--               df = df, lower.tail = FALSE) -->
-<!-- return(p_val) -->
-<!-- } -->
-
-<!-- cl <- makeCluster(getOption("cl.cores", 8)) -->
-<!-- p_vals <-parSapply(cl, 1:1000, do_test_experiment) -->
-<!-- ``` -->
 

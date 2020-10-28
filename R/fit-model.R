@@ -69,7 +69,7 @@ lvmmr <- function(Y,
               all(sapply(X, is.matrix)),
               all(sapply(X, nrow) == nrow(Y)))
     X_list <- X
-    n_pred <- sapply(X_list, ncol)
+    n_pred <- unlist(sapply(X_list, ncol))
     X <- as.matrix(Matrix::bdiag(X_list))
   }
   p <- ncol(X)
@@ -84,9 +84,9 @@ lvmmr <- function(Y,
     X_list <- list()
     for(ii in 1:r){
       X_list[[ii]] <- X[seq(ii, n * r, r), seq((ii - 1) * pii + 1,
-                                               length.out = pii)]
+                                               length.out = pii), drop = FALSE]
     }
-    n_pred <- sapply(X_list, ncol)
+    n_pred <- unlist(sapply(X_list, ncol))
   }
 
   stopifnot(nrow(X) == (n * r),

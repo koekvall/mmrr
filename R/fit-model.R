@@ -56,7 +56,9 @@ lvmmr_PQL <- function(Y,
                       W,
                       w_pen)
 {
-  # Do argument validation
+  #############################################################################
+  # Argument validation and preparations
+  #############################################################################
   stopifnot(is.matrix(Y))
   r <- ncol(Y)
   n <- nrow(Y)
@@ -86,6 +88,7 @@ lvmmr_PQL <- function(Y,
     }
     n_pred <- sapply(X_list, ncol)
   }
+
   stopifnot(nrow(X) == (n * r),
             is.numeric(type), length(type) == r,
             is.matrix(M), ncol(M) == r, nrow(M) == r,
@@ -97,7 +100,11 @@ lvmmr_PQL <- function(Y,
             is.numeric(eps), length(eps) == 1
             )
 
-  # Continue argument validation
+  if(uni_fit){
+    M[upper.tri(M)] <-0
+    M[lower.tri(M)] <- 0
+  }
+
   if(!missing(Sigma)) stopifnot(is.matrix(Sigma),
                                 ncol(Sigma) == r,
                                 nrow(Sigma) == r)
@@ -107,25 +114,19 @@ lvmmr_PQL <- function(Y,
   if(!missing(w_pen)) stopifnot(is.numeric(w_pen),
                                 length(w_pen) ==1)
 
-
-
-  # Check that model matrix has full rank
   if(qr(X)$rank != p) warning("X does not have full column rank.")
 
-  # Check that restrictions are symmetric
   if(!isSymmetric(M)){
     warning("M is not symmetric, using lower half only")
     M[upper.tri(M)] <- t(M)[upper.tri(M)]
   }
 
-  # Check if Sigma update is needed
   if(all(!is.na(M))){
     message("Skipping Sigma update because all elements constrained.")
     maxit[3] <- 0
     Sigma <- M
   }
 
-  # Check if restrictions imply independence
   test_M <- M
   test_M[is.na(test_M)] <- 1
   diag(test_M) <- 0
@@ -148,8 +149,9 @@ lvmmr_PQL <- function(Y,
       glm_fit <- stats::glm(y_uni ~ 0 + X_uni, family = fam)
       uni_coefs[, ii] <- stats::coef(glm_fit)
     }
-    Beta <- apply(uni_coefs, 1, mean, na.rm = T) # Can also weight by SE
+    Beta <- apply(uni_coefs, 1, mean, na.rm = T) # Could also weight by SE
   }
+
   stopifnot(is.list(Beta) | is.numeric(Beta))
   if(is.list(Beta)){
     stopifnot(length(Beta) == r,
@@ -162,7 +164,9 @@ lvmmr_PQL <- function(Y,
 
   if(missing(Sigma)) Sigma <- diag(1e-3, r) # For small var, model approx. GLM
 
-  # Fit univariate models if requested
+  #############################################################################
+  # Univariate fitting (recursive calling and only if uni_fit = TRUE)
+  #############################################################################
   if(uni_fit & r > 1){
     Sigma <- diag(diag(Sigma), r)
     for(ii in 1:r){
@@ -197,6 +201,9 @@ lvmmr_PQL <- function(Y,
                 X = X, Y = Y, M = M, type = type, psi = psi))
   }
 
+  #############################################################################
+  # Main algorithm
+  #############################################################################
   out_iter <- 0
   iterate_outer <- out_iter < maxit[1] # Iterate updating (Beta, Sigma) and W
   while(iterate_outer){
@@ -207,8 +214,9 @@ lvmmr_PQL <- function(Y,
     # Avoid using Beta and Sigma storage in inner loop.
     # Starting value of Sigma is set to be PD and satisfy constraints
     # NB: This is only for the starting value, and is done for stability
-    # since the W update may have led to indefinite C = B Sigma B + B Psi
-    # at the previous iterate of Sigma.
+    # since the W update may have led to indefinite (for some i)
+    #     Ci = diag(D2[, ii]) Sigma diag(D2[, ii]) + diag(D2[, ii]) diag(psi)
+    # at the previous iterate of Sigma. Not an issue if pgd = TRUE.
     new_Beta <- Beta
     new_Sigma <- project_rcpp(X = Sigma,
                               restr_idx = which(c(!is.na(M))),
@@ -230,7 +238,7 @@ lvmmr_PQL <- function(Y,
       R <- D1 + D2 * (R - W)
       R <- Y - R
       if(pgd){
-        new_Sigma <- update_Sigma_proj(R = R, D2 = D2, psi = psi,
+        new_Sigma <- update_Sigma_pgd(R = R, D2 = D2, psi = psi,
                                        Sigma.init = new_Sigma,
                                        M = M, epsilon = eps,
                                        tol.dykstra = tol[3],
@@ -289,7 +297,6 @@ lvmmr_PQL <- function(Y,
                     pen = pen)
 
     # Check whether to terminate outer loop
-    # (Seems elementwise relative change could be unstable here?)
     if(relative){
       change <- max(abs(c((Sigma - new_Sigma) / max(abs(Sigma)),
                           (Beta - new_Beta) / max(abs(Beta)))))
@@ -299,7 +306,6 @@ lvmmr_PQL <- function(Y,
     out_iter <- out_iter + 1
     iterate_outer <-  ((change > tol[1]) & (out_iter < maxit[1]))
 
-    # Print progress of outer loop
     if(!quiet[1]){
       cat("Change in parameters: ", change, "\n")
     }

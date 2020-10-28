@@ -86,7 +86,7 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
   return(W)
 }
 
-update_Sigma_proj <- function(R, D2, psi, Sigma.init, M, epsilon = 0,
+update_Sigma_pgd <- function(R, D2, psi, Sigma.init, M, epsilon = 0,
                               tol.dykstra = 1e-12, tol.ipiano = 1e-10,
                               max.iter.dykstra = 1e3, max.iter.ipiano = 1e3,
                               quiet = TRUE)

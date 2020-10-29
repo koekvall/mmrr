@@ -174,19 +174,19 @@ lvmmr <- function(Y,
       Yi <- Y[, ii, drop = F]
       beta_idx <- seq(cumsum(n_pred)[ii] - n_pred[ii] + 1,
                       length.out = n_pred[ii])
-      fit_uni <- lvmmr::lvmmr(Y = Yi,
-                                     X = Xi,
-                                     type = type[ii],
-                                     M = M[ii, ii, drop = F],
-                                     relative = relative,
-                                     quiet = quiet,
-                                     maxit = maxit,
-                                     tol = tol,
-                                     psi = psi[ii],
-                                     pgd = pgd,
-                                     Beta = Beta[beta_idx],
-                                     Sigma = Sigma[ii, ii, drop = F],
-                                     W = W[, ii, drop = F])
+      fit_uni <- lvmmr(Y = Yi,
+                           X = Xi,
+                           type = type[ii],
+                           M = M[ii, ii, drop = F],
+                           relative = relative,
+                           quiet = quiet,
+                           maxit = maxit,
+                           tol = tol,
+                           psi = psi[ii],
+                           pgd = pgd,
+                           Beta = Beta[beta_idx],
+                           Sigma = Sigma[ii, ii, drop = F],
+                           W = W[, ii, drop = F])
       Beta[beta_idx] <- fit_uni$Beta
       Sigma[ii, ii] <- fit_uni$Sigma
       W[, ii] <- fit_uni$W

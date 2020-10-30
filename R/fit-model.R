@@ -215,7 +215,7 @@ lvmmr <- function(Y,
     # Starting value of Sigma is set to be PD and satisfy constraints
     # NB: This is only for the starting value, and is done for stability
     # since the W update may have led to indefinite (for some i)
-    #     Ci = diag(D2[, ii]) Sigma diag(D2[, ii]) + diag(D2[, ii]) diag(psi)
+    #     Ci = diag(D2[ii,]) Sigma diag(D2[ii,]) + diag(D2[ii,]) diag(psi)
     # at the previous iterate of Sigma. Not an issue if pgd = TRUE.
     new_Beta <- Beta
     new_Sigma <- project_rcpp(X = Sigma,

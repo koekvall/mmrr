@@ -14,7 +14,7 @@ lrt_approx <- function(fit_null, fit_full, df, ...)
   # Unconstrained fit with null W
   fit_new <- lvmmr(Y = fit_full$Y, X = fit_full$X, type = fit_full$type,
                    psi = fit_full$psi, M = fit_full$M, maxit = c(10, 500, 500, 0),
-                   Beta = fit_null$Beta, Sigma = fit_null$Sigma,
+                   Beta = fit_full$Beta, Sigma = fit_full$Sigma,
                    W = fit_null$W, ...)
   if(missing(df)){
     df <- ncol(fit_full$X) - ncol(fit_null$X)

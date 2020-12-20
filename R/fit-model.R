@@ -71,12 +71,9 @@ lvmmr <- function(Y,
     X_list <- X
     n_pred <- unlist(sapply(X_list, ncol))
     X <- as.matrix(Matrix::bdiag(X_list))
-  }
-  p <- ncol(X)
-
-  # Create list for univariate fitting if it does not exist
-  if(uni_fit & !exists("X_list") & r > 1){
-    pii <- p / r
+  } else if(uni_fit & r > 1){
+    # Create list for univariate fitting if it does not exist
+    pii <- ncol(X) / r
     if(pii != floor(pii)){
       stop("Cannot create list of design matrices for univariate fitting
             because r does not divide p.")
@@ -88,7 +85,7 @@ lvmmr <- function(Y,
     }
     n_pred <- unlist(sapply(X_list, ncol))
   }
-
+  p <- ncol(X)
   stopifnot(nrow(X) == (n * r),
             is.numeric(type), length(type) == r,
             is.matrix(M), ncol(M) == r, nrow(M) == r,

@@ -70,9 +70,10 @@ lvmmr <- function(Y,
               all(sapply(X, nrow) == nrow(Y)))
     X_list <- X
     n_pred <- unlist(sapply(X_list, ncol))
-    X <- as.matrix(Matrix::bdiag(X_list))
+    X <- as.matrix(Matrix::bdiag(X_list)[
+      order(rep(1:n, r), rep(1:r, each = n)), ])
   } else if(uni_fit & r > 1){
-    # Create list for univariate fitting if it does not exist
+    # Create list for univariate fitting
     pii <- ncol(X) / r
     if(pii != floor(pii)){
       stop("Cannot create list of design matrices for univariate fitting

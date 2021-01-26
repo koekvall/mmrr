@@ -1,6 +1,6 @@
 Package: lvmmr
 Type: Package
-Title: Latent Variables Multivariate Mixed-type Response Regression
+Title: Latent Variable Multivariate Mixed-type Response Regression
 Version: 0.1
 Date: 2020-10-28
 Author: Karl Oskar Ekvall <k.o.ekvall@gmail.com>, Aaron J. Molstad <amolstad@ufl.edu>

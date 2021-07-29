@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // get_cumulant_diffs
 arma::mat get_cumulant_diffs(arma::mat W_T, arma::ivec type, int order);
 RcppExport SEXP _lvmmr_get_cumulant_diffs(SEXP W_TSEXP, SEXP typeSEXP, SEXP orderSEXP) {

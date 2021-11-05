@@ -6,6 +6,7 @@ The package can be installed using the `devtools` package:
 
 ``` r
 library(devtools)
-install.git_hub("koekvall/lvmmr")
+install_github("koekvall/lvmmr")
 ```
 
+A worked example showing how to use the package is available at http://koekvall.github.io/docs/lvmmr/example.html

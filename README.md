@@ -9,4 +9,4 @@ library(devtools)
 install_github("koekvall/mmrr")
 ```
 
-A worked example showing how to use the package is available at http://koekvall.github.io/docs/mmrr/example.html
+A worked example showing how to use the package is available at https://koekvall.github.io/docs/mmrr/example.html

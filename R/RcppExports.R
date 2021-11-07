@@ -2,18 +2,18 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 get_cumulant_diffs <- function(W_T, type, order) {
-    .Call('_mmrr_get_cumulant_diffs', PACKAGE = 'mmrr', W_T, type, order)
+    .Call(`_mmrr_get_cumulant_diffs`, W_T, type, order)
 }
 
 working_ll_rcpp <- function(Y_T, X_T, beta, Sigma, W_T, psi, D1_T, D2_T) {
-    .Call('_mmrr_working_ll_rcpp', PACKAGE = 'mmrr', Y_T, X_T, beta, Sigma, W_T, psi, D1_T, D2_T)
+    .Call(`_mmrr_working_ll_rcpp`, Y_T, X_T, beta, Sigma, W_T, psi, D1_T, D2_T)
 }
 
 project_rcpp <- function(X, restr_idx, restr, eps, tol, maxit) {
-    .Call('_mmrr_project_rcpp', PACKAGE = 'mmrr', X, restr_idx, restr, eps, tol, maxit)
+    .Call(`_mmrr_project_rcpp`, X, restr_idx, restr, eps, tol, maxit)
 }
 
 obj_sigma_rcpp <- function(Sigma, R_T, D2_T, psi, use_idx, order) {
-    .Call('_mmrr_obj_sigma_rcpp', PACKAGE = 'mmrr', Sigma, R_T, D2_T, psi, use_idx, order)
+    .Call(`_mmrr_obj_sigma_rcpp`, Sigma, R_T, D2_T, psi, use_idx, order)
 }
 

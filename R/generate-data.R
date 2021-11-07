@@ -1,4 +1,4 @@
-#' Generate Latent Variables Mixed-type Multivariate Regression
+#' Generate data from mixed-type multivariate response regression model
 #'
 #' @param X An nr x p matrix of predictors. The first r elements are predictors
 #'   for the r responses in the first independent response vector, and so on.
@@ -11,7 +11,7 @@
 #'   responses. For Poisson, generates Y| W as psi * Poi(exp(W) / psi)
 #' @return An n x r matrix of responses.
 #' @export
-generate_lvmmr <- function(X, Beta, R, type, psi)
+generate_mmrr <- function(X, Beta, R, type, psi)
 {
   # R should be such that t(R) %*% R = Sigma = solve(Omega)
   # Beta and X should be supplied as matrices

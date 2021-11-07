@@ -1,0 +1,81 @@
+---
+title: "Mixed-type multivariate response regression"
+author: "Karl Oskar Ekvall"
+output: pdf_document
+vignette: >
+  %\VignetteIndexEntry{Mixed-type multivariate response regression}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+# Overview
+
+The package provides approximate maximum likelihood estimation of regression coefficients and an unstructured covariance matrix parameterizing dependence between responses of mixed types. A function for approximate likelihood-ratio testing is also included.
+ 
+# Installation
+
+The package can be installed from GitHub, using devtools.
+
+```{r}
+# devtools::install_github("koekvall/lvmmr")
+library(lvmmr)
+```
+
+
+# Setting
+
+Let $y_1, \dots, y_n$ be independent $r-$dimensional response vectors whose elements are possibly of mixed types, some continuous and some discrete for example. Let $X_1, \dots, X_n$ be corresponding $r\times p$ design matrices. The package fits the regression model
+\[
+    E(y_i \mid w_i) = g^{-1}(w_i), ~~ w_i \sim \mathrm{N}_r(X_i \beta, \Sigma),
+\]
+where $g$ is an $\mathbb{R}^r$-valued link function, $w_i$ is a latent (unobservable) variable, $\beta \in \mathbb{R}^p$, and $\Sigma \in \mathbb{R}^{r\times r}$ is a covariance matrix. Details are in the manuscript ``Mixed-type multivariate response regression with covariance estimation" by Ekvall and Molstad.
+
+The package currently supports responses such that, for every $i = 1, \dots, n$ and $j = 1, \dots, r$, $y_{ij} \mid w_i$ is either (a) normal with mean $x_{ij}' \beta$ and variance $\psi_j$, (b) quasi-Poisson with mean $\exp(x_{ij}' \beta)$ and variance $\psi_j \exp(x_{ij}'\beta)$, or (c) Bernoulli with success probability $1 / \{1 + \exp(-x_{ij}'\beta)\}$. The vector $\psi = (\psi_1, \dots, \psi_r)$ is assumed known and provided as an argument to the fitting function.
+
+If $y_{ij}$ is a Bernoulli response, $\psi_j = 1$ and $\Sigma_{jj}  = 1$ is enforced for identifiability.
+
+# Example
+
+We generate $n = 100$ observations of a $3$-dimensional response vector and then fit the model. The matrix of predictors is of size $nr\times p$, where the first $r$ rows correspond to the design matrix $X_1$ for the response vector $y_1$, the next $r$ rows correspond to $X_2$, and so on. That is, $X$ is the design matrix for the vector of all responses $[y_1', \dots, y_n']' \in \mathbb{R}^{nr}$. We take $X_i = I_3$, the $3\times 3$ identity matrix, corresponding to a separate intercept for each of the three responses. The responses are stored in an $n\times r$ matrix where the $i$th row is the $i$th response vector. The first response is normal, the second Bernoulli, and the third Poisson (conditionally on the latent vector).
+
+```{r}
+library(lvmmr)
+
+# Generate data
+n <- 100; r <- 3
+set.seed(4)
+X <- kronecker(rep(1, n), diag(3)) # Each response has its own intercept
+type <- 1:3 # First response normal, second Bernoulli, third Poisson
+psi <- rep(1, 3) # psi_j = 1 for all j
+Beta0 <- runif(3, -1, 1) # True coefficient vector
+Sigma0 <- cov2cor(crossprod(matrix(rnorm(9), 3, 3))) # True covariance matrix
+R0 <- chol(Sigma0) # Function for generating data uses Cholesky root
+Y <- generate_lvmmr(X = X, Beta = Beta0, R = R0, type = type, psi = psi)
+
+# Fit model
+fit <- lvmmr(Y = Y, X = X, type = type, psi = psi)
+
+# Get estimates
+fit$Beta
+fit$Sigma
+```
+
+Suppose we want to test whether the Normal and Bernoulli variable are independent. That is equivalent to testing whether $Sigma_{12} = \Sigma_{21} = 0$. We fit the null model by incorporating the elementwise restrictions on $\Sigma$ using the argument $M$. We also restrict $\Sigma_{22} = 1$ for identifiability because the second response is Bernoulli (this restriction is automatic when the user does not supply $M$).
+
+```{r}
+M <- matrix(NA, 3, 3) # NA means no restriction
+M[1, 2] <- M[2, 1] <- 0 # Set covariance restriction
+M[2, 2] <- 1 # Set variance restriction
+# Inspect M
+M
+
+# Fit model
+fit_null <- lvmmr(Y = Y, X = X, type = type, psi = psi, M = M)
+
+# Inspect null estimate
+fit_null$Sigma
+
+# Do approximate likelihood ratio test
+lrt_approx(fit_null = fit_null, fit_full = fit)
+```
+

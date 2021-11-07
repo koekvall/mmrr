@@ -13,7 +13,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // get_cumulant_diffs
 arma::mat get_cumulant_diffs(arma::mat W_T, arma::ivec type, int order);
-RcppExport SEXP _lvmmr_get_cumulant_diffs(SEXP W_TSEXP, SEXP typeSEXP, SEXP orderSEXP) {
+RcppExport SEXP _mmrr_get_cumulant_diffs(SEXP W_TSEXP, SEXP typeSEXP, SEXP orderSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -26,7 +26,7 @@ END_RCPP
 }
 // working_ll_rcpp
 double working_ll_rcpp(const arma::mat Y_T, const arma::mat X_T, const arma::vec beta, const arma::mat Sigma, const arma::mat W_T, const arma::vec psi, const arma::mat D1_T, const arma::mat D2_T);
-RcppExport SEXP _lvmmr_working_ll_rcpp(SEXP Y_TSEXP, SEXP X_TSEXP, SEXP betaSEXP, SEXP SigmaSEXP, SEXP W_TSEXP, SEXP psiSEXP, SEXP D1_TSEXP, SEXP D2_TSEXP) {
+RcppExport SEXP _mmrr_working_ll_rcpp(SEXP Y_TSEXP, SEXP X_TSEXP, SEXP betaSEXP, SEXP SigmaSEXP, SEXP W_TSEXP, SEXP psiSEXP, SEXP D1_TSEXP, SEXP D2_TSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -44,7 +44,7 @@ END_RCPP
 }
 // project_rcpp
 arma::mat project_rcpp(arma::mat X, const arma::uvec restr_idx, const arma::vec restr, const double eps, const double tol, uint maxit);
-RcppExport SEXP _lvmmr_project_rcpp(SEXP XSEXP, SEXP restr_idxSEXP, SEXP restrSEXP, SEXP epsSEXP, SEXP tolSEXP, SEXP maxitSEXP) {
+RcppExport SEXP _mmrr_project_rcpp(SEXP XSEXP, SEXP restr_idxSEXP, SEXP restrSEXP, SEXP epsSEXP, SEXP tolSEXP, SEXP maxitSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -60,7 +60,7 @@ END_RCPP
 }
 // obj_sigma_rcpp
 Rcpp::List obj_sigma_rcpp(arma::mat Sigma, const arma::mat R_T, const arma::mat D2_T, const arma::vec psi, const arma::ivec use_idx, const uint order);
-RcppExport SEXP _lvmmr_obj_sigma_rcpp(SEXP SigmaSEXP, SEXP R_TSEXP, SEXP D2_TSEXP, SEXP psiSEXP, SEXP use_idxSEXP, SEXP orderSEXP) {
+RcppExport SEXP _mmrr_obj_sigma_rcpp(SEXP SigmaSEXP, SEXP R_TSEXP, SEXP D2_TSEXP, SEXP psiSEXP, SEXP use_idxSEXP, SEXP orderSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -76,14 +76,14 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_lvmmr_get_cumulant_diffs", (DL_FUNC) &_lvmmr_get_cumulant_diffs, 3},
-    {"_lvmmr_working_ll_rcpp", (DL_FUNC) &_lvmmr_working_ll_rcpp, 8},
-    {"_lvmmr_project_rcpp", (DL_FUNC) &_lvmmr_project_rcpp, 6},
-    {"_lvmmr_obj_sigma_rcpp", (DL_FUNC) &_lvmmr_obj_sigma_rcpp, 6},
+    {"_mmrr_get_cumulant_diffs", (DL_FUNC) &_mmrr_get_cumulant_diffs, 3},
+    {"_mmrr_working_ll_rcpp", (DL_FUNC) &_mmrr_working_ll_rcpp, 8},
+    {"_mmrr_project_rcpp", (DL_FUNC) &_mmrr_project_rcpp, 6},
+    {"_mmrr_obj_sigma_rcpp", (DL_FUNC) &_mmrr_obj_sigma_rcpp, 6},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_lvmmr(DllInfo *dll) {
+RcppExport void R_init_mmrr(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

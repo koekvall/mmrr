@@ -8,14 +8,14 @@
 lrt_approx(fit_null, fit_full, df, ...)
 }
 \arguments{
-\item{fit_null}{The output from lvmmr() fit under the null hypothesis}
+\item{fit_null}{The output from mmrr() fit under the null hypothesis}
 
-\item{fit_full}{The output from lvmmr() fit under the alternative hypothesis}
+\item{fit_full}{The output from mmrr() fit under the alternative hypothesis}
 
 \item{df}{The degrees of freedom; if not supplied, set to the sum of the
 difference in number of predictors and number of restrictions on Sigma.}
 
-\item{...}{Other arguments passed to lvmmr() when re-fitting the full model
+\item{...}{Other arguments passed to mmrr() when re-fitting the full model
 holding W fixed at fit_null$W.}
 }
 \value{

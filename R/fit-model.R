@@ -1,4 +1,4 @@
-#' Fit Latent Variables Mixed-type Multivariate Regression by PQL
+#' Fit mixed-type multivariate response regression
 #'
 #' @param Y An n x r matrix of responses.
 #' @param X An nr x p matrix of predictors or a list of length r whose ith
@@ -35,20 +35,20 @@
 #' @param w_pen Ridge penalty in W update; often useful to avoid overflows.
 #'   Defaults to largest eigenvalue of current Sigma iterate if not supplied.
 #' @return A list of final iterates and other information about the fit.
-#' @useDynLib lvmmr, .registration = TRUE
+#' @useDynLib mmrr, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
 #' @importFrom Rcpp evalCpp
 #' @export
-lvmmr <- function(Y,
+mmrr <- function(Y,
                   X,
                   type,
                   psi = rep(1, ncol(Y)),
-                  M = matrix(NA, nrow = ncol(Y), ncol = ncol(Y)),
+                  M,
                   tol = rep(1e-8, 4),
-                  maxit = rep(1e2, 4),
+                  maxit = rep(500, 4),
                   quiet = rep(TRUE, 4),
                   relative = TRUE,
-                  pgd = FALSE,
+                  pgd = TRUE,
                   eps = 0,
                   uni_fit = FALSE,
                   Beta,
@@ -62,6 +62,11 @@ lvmmr <- function(Y,
   stopifnot(is.matrix(Y))
   r <- ncol(Y)
   n <- nrow(Y)
+
+  if(missing(M)){
+   M <- matrix(NA, nrow = ncol(Y), ncol = ncol(Y))
+   diag(M)[type == 2] <- 1
+  }
 
   stopifnot(is.list(X) | is.matrix(X))
   if(is.list(X)){
@@ -172,7 +177,7 @@ lvmmr <- function(Y,
       Yi <- Y[, ii, drop = F]
       beta_idx <- seq(cumsum(n_pred)[ii] - n_pred[ii] + 1,
                       length.out = n_pred[ii])
-      fit_uni <- lvmmr(Y = Yi,
+      fit_uni <- mmrr(Y = Yi,
                            X = Xi,
                            type = type[ii],
                            M = M[ii, ii, drop = F],

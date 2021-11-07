@@ -2,5 +2,11 @@
 
 This package implements the method discussed in the paper ``Mixed-type multivariate response regression with covariance estimation" by Ekvall and Molstad (https://arxiv.org/abs/2101.08436).
 
-Examples are forthcoming.
+The package can be installed using the `devtools` package:
 
+``` r
+library(devtools)
+install_github("koekvall/lvmmr")
+```
+
+A worked example showing how to use the package is available at http://koekvall.github.io/docs/lvmmr/example.html

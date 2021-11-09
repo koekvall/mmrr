@@ -29,7 +29,7 @@ Let $y_1, \dots, y_n$ be independent $r-$dimensional response vectors whose elem
 \]
 where $g$ is an $\mathbb{R}^r$-valued link function, $w_i$ is a latent (unobservable) variable, $\beta \in \mathbb{R}^p$, and $\Sigma \in \mathbb{R}^{r\times r}$ is a covariance matrix. Details are in the manuscript ``Mixed-type multivariate response regression with covariance estimation" by Ekvall and Molstad.
 
-The package currently supports responses such that, for every $i = 1, \dots, n$ and $j = 1, \dots, r$, $y_{ij} \mid w_i$ is either (a) normal with mean $x_{ij}' \beta$ and variance $\psi_j$, (b) quasi-Poisson with mean $\exp(x_{ij}' \beta)$ and variance $\psi_j \exp(x_{ij}'\beta)$, or (c) Bernoulli with success probability $1 / \{1 + \exp(-x_{ij}'\beta)\}$. The vector $\psi = (\psi_1, \dots, \psi_r)$ is assumed known and provided as an argument to the fitting function.
+The package currently supports responses such that, for every $i = 1, \dots, n$ and $j = 1, \dots, r$, $y_{ij} \mid w_i$ is either (a) normal with mean $w_{ij}$ and variance $\psi_j$, (b) quasi-Poisson with mean $\exp(w_{ij})$ and variance $\psi_j \exp(w_{ij})$, or (c) Bernoulli with success probability $1 / \{1 + \exp(-w_{ij})\}$. The vector $\psi = (\psi_1, \dots, \psi_r)$ is assumed known and provided as an argument to the fitting function.
 
 If $y_{ij}$ is a Bernoulli response, $\psi_j = 1$ and $\Sigma_{jj}  = 1$ is enforced for identifiability.
 

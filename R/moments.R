@@ -31,7 +31,7 @@ predict_mmr <- function(X, Beta, sigma, type, num_nodes = 15)
       if(type[jj] == 1){
         # Prediction is linear predictor
       } else if (type[jj] == 3){
-        Xb[, jj] <- exp(Xb[, jj] + 0.5 * rep(sigma[jj]^2, n))
+        Xb[, jj] <- exp(Xb[, jj] + 0.5 * sigma[jj]^2)
       } else{
         W <- W0 * sigma[jj]
         W <- sweep(W, 1, STATS = Xb[, jj], FUN = "+")

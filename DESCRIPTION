@@ -8,7 +8,7 @@ Maintainer: Karl Oskar Ekvall <k.o.ekvall@gmail.com>
 Description: Fits mixed-type multivariate response response regression models,
   using an algorithm somewhat similar to penalized quasi-likleihood.
 License: MIT + file LICENSE
-Imports: Rcpp (>= 1.0.0), statmod, trust, matrixcalc, Matrix
+Imports: Rcpp (>= 1.0.0), mvQuad, trust, matrixcalc, Matrix
 LinkingTo: Rcpp, RcppArmadillo
 Encoding: UTF-8
 RoxygenNote: 7.1.2

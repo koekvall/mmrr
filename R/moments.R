@@ -21,51 +21,81 @@ predict_mmr <- function(X, Beta, sigma, type, num_nodes = 15)
 
   Xb <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = T)
   # Standard normal quadrature
-  quadrature <- statmod::gauss.quad.prob(n = num_nodes, dist = "normal")
-  W0 <- matrix(rep(quadrature$nodes, each = n), nrow = n, ncol = num_nodes,
+  grid_gauss <- mvQuad::createNIGrid(dim = 1, type = "GHN", level = num_nodes,
+                                     level.trans = FALSE)
+  nodes <- as.vector(mvQuad::getNodes(grid_gauss))
+  weights <- mvQuad::getWeights(grid_gauss)
+  W0 <- matrix(rep(nodes, each = n), nrow = n, ncol = num_nodes,
                byrow = FALSE)
   for(jj in 1:r){
       W <- W0 * sigma[jj]
       W <- sweep(W, 1, STATS = Xb[, jj], FUN = "+")
-      W <- t(get_cumulant_diffs(W_T = t(W), type = rep(type[jj], num_nodes), order = 1))
-      W <- sweep(W, 2, STATS = quadrature$weights, FUN = "*")
+      W <- t(get_cumulant_diffs(W_T = t(W), type = rep(type[jj], num_nodes),
+                                order = 1))
+      W <- sweep(W, 2, STATS = weights, FUN = "*")
       Xb[, jj] <- rowSums(W)
   }
   return(Xb)
 }
 
-#' #' Calculate marginal covariance matrix
-#' #'
-#' #' @param X An nr x p matrix of predictors. The first r elements are predictors
-#' #'   for the r responses in the first independent response vector, and so on.
-#' #' @param Beta A p-vector of latent regression coefficients
-#' #' @param sigma An r-vector of standard deviations for the responses,
-#' #'              i.e. sqrt(diag(Sigma)).
-#' #' @param type An r-vector indicating response types:
-#' #'             1 means normal, 2 means Bernoulli,
-#' #'             and 3 means Poisson.
-#' #' @param num_nodes Number of nodes to use in Gaussian quadrature used to
-#' #'                  calculate predictions
-#' #' @return An n x r matrix of predicted (fitted) values
-#' #' @export
-#' cov_mmrr <- function(X, Beta, sigma, type, num_nodes = 15)
-#' {
-#'   # Define constants
-#'   p <- ncol(X)
-#'   r <- length(type)
-#'   n <- nrow(X) / r
+#' Calculate marginal covariance matrix of responses given predictors
 #'
-#'   Xb <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = T)
-#'   # Standard normal quadrature
-#'   quadrature <- statmod::gauss.quad.prob(n = num_nodes, dist = "normal")
-#'   W0 <- matrix(rep(quadrature$nodes, each = n), nrow = n, ncol = num_nodes,
-#'                byrow = FALSE)
-#'   for(jj in 1:r){
-#'     W <- W0 * sigma[jj]
-#'     W <- sweep(W, 1, STATS = Xb[, jj], FUN = "+")
-#'     W <- t(get_cumulant_diffs(W_T = t(W), type = rep(type[jj], num_nodes), order = 1))
-#'     W <- sweep(W, 2, STATS = quadrature$weights, FUN = "*")
-#'     Xb[, jj] <- rowSums(W)
-#'   }
-#'   return(Xb)
-#' }
+#' @param X An r x p matrix of predictors.
+#' @param Beta A p-vector of latent regression coefficients
+#' @param Sigma An r x r covariance matrix for latent vector
+#' @param psi An r-vector of conditional variance parameters
+#' @param type An r-vector indicating response types:
+#'             1 means normal, 2 means Bernoulli,
+#'             and 3 means Poisson.
+#' @param num_nodes Number of nodes for Gaussian quadrature used to
+#'                  calculate predictions
+#' @return An r x r covariance matrix for responses given predictors (Y|X)
+#' @export
+cov_mmrr <- function(X, Beta, Sigma, psi, type, num_nodes = 10)
+{
+  # Define constants
+  p <- ncol(X)
+  r <- length(type)
+
+  Xb <- X %*% Beta
+  mu <- predict_mmr(X = X, Beta = Beta, sigma = diag(Sigma), type = type,
+                    num_nodes = num_nodes)
+  grid_gauss <- mvQuad::createNIGrid(dim = 2, type = "GHN", level = num_nodes,
+                                     level.trans = FALSE)
+  cov_mat <- matrix(0, r, r)
+  for(jj in 1:r){
+    for(kk in 1:jj){
+      if(jj != kk){
+        if((type[jj] == 1) & type[kk] == 1){
+         cov_mat[jj, kk] <- Sigma[jj, kk]
+       } else if((type[jj] == 1) & (type[kk] == 3)){
+         cov_mat[jj, kk] <- Sigma[jj, kk] * exp(Xb[kk] + 0.5 * Sigma[kk, kk])
+       } else if((type[jj] == 3) & (type[kk] == 1)){
+         cov_mat[jj, kk] <- Sigma[kk, jj] * exp(Xb[jj] + 0.5 * Sigma[jj, jj])
+       } else if ((type[jj] == 3) & (type[kk] == 3)){
+         cov_mat[jj, kk] <- exp(Xb[jj] + Xb[kk] + 0.5 * Sigma[jj, jj] +
+                                  0.5 *Sigma[kk, kk] + Sigma[jj, kk]) -
+           exp(Xb[jj] + Xb[kk] + 0.5 * Sigma[jj, jj] + 0.5 * Sigma[kk, kk])
+       } else{
+         R <- chol(Sigma[c(jj, kk), c(jj, kk)])
+         integrand <- function(w){
+           w <- w %*% R + matrix(Xb[c(jj, kk)], nrow = nrow(w), ncol = 2, byrow = TRUE)
+           w <- t(get_cumulant_diffs(W_T = t(w), type = type[c(jj, kk)], order = 1))
+           w <- w - matrix(mu[c(jj, kk)], nrow = nrow(w), ncol = 2, byrow = TRUE)
+           w[, 1] * w[, 2]
+         }
+         cov_mat[jj, kk] <- mvQuad::quadrature(integrand, grid = grid_gauss)
+       }
+       cov_mat[kk, jj] <- cov_mat[jj, kk]
+      } else if(type[jj] == 1){ # Normal variance
+       cov_mat[jj, jj] <- Sigma[jj, jj] + psi[jj]
+     } else if(type[jj] == 2){ # Bernoulli variance
+       cov_mat[jj, jj] <- mu[jj] - mu[jj]^2
+     } else{ # Poisson variance
+       cov_mat[jj, jj] <- exp(2 * Xb[jj] + Sigma[jj, jj]) *
+        (exp(Sigma[jj, jj]) - 1 + psi[jj] * exp(-Xb[jj] - 0.5 * Sigma[jj, jj]))
+     }
+    }
+  }
+  return(cov_mat)
+}

@@ -28,12 +28,18 @@ predict_mmr <- function(X, Beta, sigma, type, num_nodes = 15)
   W0 <- matrix(rep(nodes, each = n), nrow = n, ncol = num_nodes,
                byrow = FALSE)
   for(jj in 1:r){
-      W <- W0 * sigma[jj]
-      W <- sweep(W, 1, STATS = Xb[, jj], FUN = "+")
-      W <- t(get_cumulant_diffs(W_T = t(W), type = rep(type[jj], num_nodes),
-                                order = 1))
-      W <- sweep(W, 2, STATS = weights, FUN = "*")
-      Xb[, jj] <- rowSums(W)
+      if(type[jj] == 1){
+        # Prediction is linear predictor
+      } else if (type[jj] == 3){
+        Xb[, jj] <- exp(Xb[, jj] + 0.5 * rep(sigma[jj]^2, n))
+      } else{
+        W <- W0 * sigma[jj]
+        W <- sweep(W, 1, STATS = Xb[, jj], FUN = "+")
+        W <- t(get_cumulant_diffs(W_T = t(W), type = rep(type[jj], num_nodes),
+                                  order = 1))
+        W <- sweep(W, 2, STATS = weights, FUN = "*")
+        Xb[, jj] <- rowSums(W)
+      }
   }
   return(Xb)
 }

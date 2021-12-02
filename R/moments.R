@@ -98,8 +98,8 @@ cov_mmrr <- function(X, Beta, Sigma, psi, type, num_nodes = 10)
      } else if(type[jj] == 2){ # Bernoulli variance
        cov_mat[jj, jj] <- mu[jj] - mu[jj]^2
      } else{ # Poisson variance
-       cov_mat[jj, jj] <- exp(2 * Xb[jj] + Sigma[jj, jj]) *
-        (exp(Sigma[jj, jj]) - 1 + psi[jj] * exp(-Xb[jj] - 0.5 * Sigma[jj, jj]))
+       cov_mat[jj, jj] <- psi[jj] * exp(Xb[jj] + 0.5 * Sigma[jj, jj]) +
+         exp(2 * Xb[jj] + 2 * Sigma[jj, jj]) - mu[jj]^2
      }
     }
   }

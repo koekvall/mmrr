@@ -24,7 +24,7 @@ predict_mmr <- function(X, Beta, sigma, type, num_nodes = 15)
   grid_gauss <- mvQuad::createNIGrid(dim = 1, type = "GHN", level = num_nodes,
                                      level.trans = FALSE)
   nodes <- as.vector(mvQuad::getNodes(grid_gauss))
-  weights <- mvQuad::getWeights(grid_gauss)
+  weights <- as.vector(mvQuad::getWeights(grid_gauss))
   W0 <- matrix(rep(nodes, each = n), nrow = n, ncol = num_nodes,
                byrow = FALSE)
   for(jj in 1:r){
@@ -64,7 +64,7 @@ cov_mmrr <- function(X, Beta, Sigma, psi, type, num_nodes = 10)
   r <- length(type)
 
   Xb <- X %*% Beta
-  mu <- predict_mmr(X = X, Beta = Beta, sigma = diag(Sigma), type = type,
+  mu <- predict_mmr(X = X, Beta = Beta, sigma = sqrt(diag(Sigma)), type = type,
                     num_nodes = num_nodes)
   grid_gauss <- mvQuad::createNIGrid(dim = 2, type = "GHN", level = num_nodes,
                                      level.trans = FALSE)

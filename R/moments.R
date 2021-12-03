@@ -12,12 +12,22 @@
 #'                  calculate predictions
 #' @return An n x r matrix of predicted (fitted) values
 #' @export
-predict_mmr <- function(X, Beta, sigma, type, num_nodes = 15)
+predict_mmrr <- function(X, Beta, sigma, type, num_nodes = 15)
 {
+  # Argument checking
+  stopifnot(is.matrix(X),
+            is.numeric(Beta), is.atomic(Beta),
+            is.numeric(sigma), is.atomic(sigma), all(sigma >= 0),
+            is.numeric(type), is.atomic(type), all(type %in% 1:3),
+            is.numeric(num_nodes), is.atomic(num_nodes),
+            length(num_nodes) == 1, floor(num_nodes) == num_nodes,
+            num_nodes >= 1)
+
   # Define constants
   p <- ncol(X)
   r <- length(type)
   n <- nrow(X) / r
+  stopifnot(floor(n) == n, length(Beta) == p, length(sigma) == r)
 
   Xb <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = T)
   # Standard normal quadrature
@@ -59,12 +69,23 @@ predict_mmr <- function(X, Beta, sigma, type, num_nodes = 15)
 #' @export
 cov_mmrr <- function(X, Beta, Sigma, psi, type, num_nodes = 10)
 {
+  # Argument checking
+  stopifnot(is.matrix(X),
+            is.numeric(Beta), is.atomic(Beta),
+            is.matrix(Sigma), is.numeric(Sigma),
+            is.numeric(psi), is.atomic(psi), all(psi > 0),
+            is.numeric(type), is.atomic(type), all(type %in% 1:3),
+            is.numeric(num_nodes), is.atomic(num_nodes),
+            length(num_nodes) == 1, floor(num_nodes) == num_nodes,
+            num_nodes >= 1)
   # Define constants
   p <- ncol(X)
   r <- length(type)
+  stopifnot(length(Beta) == p, all(dim(Sigma) == r), length(psi) == r)
+
 
   Xb <- X %*% Beta
-  mu <- predict_mmr(X = X, Beta = Beta, sigma = sqrt(diag(Sigma)), type = type,
+  mu <- predict_mmrr(X = X, Beta = Beta, sigma = sqrt(diag(Sigma)), type = type,
                     num_nodes = num_nodes)
   grid_gauss <- mvQuad::createNIGrid(dim = 2, type = "GHN", level = num_nodes,
                                      level.trans = FALSE)

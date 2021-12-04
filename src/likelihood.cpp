@@ -1,4 +1,20 @@
 #include <RcppArmadillo.h>
+
+// Compute working log-likelihood
+//
+// Arguments:
+// Y_T: transpose of n x r response matrix.
+// X_T: transpose of nr * p response matrix. Columns 1:r of X_T correspond to
+//   the first observations, the next r columns to the second obs, and so on.
+// beta: p-vector of regression coefficients.
+// Sigma: r by r covariance matrix of latent vector.
+// W_T: transpose of n x r matrix of approx. points (~predicted latent vars)
+// psi: r-vector of conditional variance parameters.
+// D1_T: transpose of n x r matrix of first derivatives of cumulant functions
+//  evaluated at the expansion points.
+// D2_T: transpose of n x r matrix of second derivatives of cumulant functions
+//  evaluated at the expansion points.
+//
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 double working_ll_rcpp(const arma::mat Y_T,

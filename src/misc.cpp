@@ -1,4 +1,18 @@
 #include <RcppArmadillo.h>
+
+// Compute projection onto intersection of set with restricted elements
+// and set of symmetric matrices with eigenvalues bounded below.
+//
+// Arguments:
+//
+// X: symmetric matrix to project
+// restr_idx: vector of indexes of X to restrict (in column-major order)
+// restr: vector of values to restrict elements of X to (column major order)
+// eps: scalar (double) lower bound on the eigenvalues of matrices in the set
+//   projected on.
+// tol: scalar (double) tolerance for terminating the algorithm.
+// maxit: positive integer with maximum number of iterations for algorithm.
+
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 arma::mat project_rcpp(arma::mat X, const arma::uvec restr_idx,

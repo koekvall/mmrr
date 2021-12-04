@@ -1,4 +1,21 @@
 #include <RcppArmadillo.h>
+
+// Compute objective function for Sigma update and its derivatives
+//
+// Arguments:
+//
+// Sigma: r by r covariance matrix of latent vector.
+// R_T: transpose of n x r matrix of working residuals.
+// D2_T: transpose of n x r matrix of second derivatives of cumulant functions
+//  evaluated at the expansion points.
+// psi: r-vector of conditional variance parameters.
+// use_idx: n-vector with the index of the observations to use in the update.
+// order: integer 0, 1, or 2; gradient is calculated if order >= 1 and Hessian
+//  is calculated if order = 2.
+//
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+//
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 Rcpp::List obj_sigma_rcpp(arma::mat Sigma,
@@ -23,7 +40,7 @@ Rcpp::List obj_sigma_rcpp(arma::mat Sigma,
     C.each_col() %= D2_T.col(idx);
     C.diag() += psi % D2_T.col(idx);
     C = arma::symmatu(C);
-    
+
     arma::mat U(r, r);
     arma::vec d(r);
     arma::eig_sym(d, U, C);

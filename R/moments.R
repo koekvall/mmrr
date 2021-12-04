@@ -56,7 +56,7 @@ predict_mmrr <- function(X, Beta, sigma, type, num_nodes = 15)
 
 #' Calculate marginal covariance matrix of responses given predictors
 #'
-#' @param X An r x p matrix of predictors.
+#' @param X An nr x p matrix of predictors.
 #' @param Beta A p-vector of latent regression coefficients
 #' @param Sigma An r x r covariance matrix for latent vector
 #' @param psi An r-vector of conditional variance parameters
@@ -65,12 +65,13 @@ predict_mmrr <- function(X, Beta, sigma, type, num_nodes = 15)
 #'             and 3 means Poisson.
 #' @param num_nodes Number of nodes for Gaussian quadrature used to
 #'                  calculate predictions
-#' @return An r x r covariance matrix for responses given predictors (Y|X)
+#' @return An nr x nr covariance matrix for responses given predictors (Y|X),
+#'   in sparse format if n > 1.
 #' @export
 cov_mmrr <- function(X, Beta, Sigma, psi, type, num_nodes = 10)
 {
   # Argument checking
-  stopifnot(is.matrix(X),
+  stopifnot(is.matrix(X), is.numeric(X),
             is.numeric(Beta), is.atomic(Beta),
             is.matrix(Sigma), is.numeric(Sigma),
             is.numeric(psi), is.atomic(psi), all(psi > 0),
@@ -81,48 +82,59 @@ cov_mmrr <- function(X, Beta, Sigma, psi, type, num_nodes = 10)
   # Define constants
   p <- ncol(X)
   r <- length(type)
-  stopifnot(length(Beta) == p, all(dim(Sigma) == r), length(psi) == r)
+  n <- nrow(X) / r
+  stopifnot(length(Beta) == p, all(dim(Sigma) == r), length(psi) == r,
+            n == floor(n), n >= 1)
 
 
-  Xb <- X %*% Beta
+  Xb <- matrix(X %*% Beta, nrow = n, ncol = r, byrow = T)
   mu <- predict_mmrr(X = X, Beta = Beta, sigma = sqrt(diag(Sigma)), type = type,
                     num_nodes = num_nodes)
   grid_gauss <- mvQuad::createNIGrid(dim = 2, type = "GHN", level = num_nodes,
                                      level.trans = FALSE)
-  cov_mat <- matrix(0, r, r)
-  for(jj in 1:r){
-    for(kk in 1:jj){
-      if(jj != kk){
-        if((type[jj] == 1) & type[kk] == 1){
-         cov_mat[jj, kk] <- Sigma[jj, kk]
-       } else if((type[jj] == 1) & (type[kk] == 3)){
-         cov_mat[jj, kk] <- Sigma[jj, kk] * exp(Xb[kk] + 0.5 * Sigma[kk, kk])
-       } else if((type[jj] == 3) & (type[kk] == 1)){
-         cov_mat[jj, kk] <- Sigma[kk, jj] * exp(Xb[jj] + 0.5 * Sigma[jj, jj])
-       } else if ((type[jj] == 3) & (type[kk] == 3)){
-         cov_mat[jj, kk] <- exp(Xb[jj] + Xb[kk] + 0.5 * Sigma[jj, jj] +
-                                  0.5 *Sigma[kk, kk] + Sigma[jj, kk]) -
-           exp(Xb[jj] + Xb[kk] + 0.5 * Sigma[jj, jj] + 0.5 * Sigma[kk, kk])
-       } else{
-         R <- chol(Sigma[c(jj, kk), c(jj, kk)])
-         integrand <- function(w){
-           w <- w %*% R + matrix(Xb[c(jj, kk)], nrow = nrow(w), ncol = 2, byrow = TRUE)
-           w <- t(get_cumulant_diffs(W_T = t(w), type = type[c(jj, kk)], order = 1))
-           w <- w - matrix(mu[c(jj, kk)], nrow = nrow(w), ncol = 2, byrow = TRUE)
-           w[, 1] * w[, 2]
-         }
-         cov_mat[jj, kk] <- mvQuad::quadrature(integrand, grid = grid_gauss)
-       }
-       cov_mat[kk, jj] <- cov_mat[jj, kk]
-      } else if(type[jj] == 1){ # Normal variance
-       cov_mat[jj, jj] <- Sigma[jj, jj] + psi[jj]
-     } else if(type[jj] == 2){ # Bernoulli variance
-       cov_mat[jj, jj] <- mu[jj] - mu[jj]^2
-     } else{ # Poisson variance
-       cov_mat[jj, jj] <- psi[jj] * exp(Xb[jj] + 0.5 * Sigma[jj, jj]) +
-         exp(2 * Xb[jj] + 2 * Sigma[jj, jj]) - mu[jj]^2
-     }
-    }
+  if(n > 1){
+    cov_mat <- Matrix::kronecker(Matrix::Diagonal(n), matrix(1, r, r))
+  } else{
+    cov_mat <- matrix(0, r, r)
   }
+ for(ii in 1:n){
+   for(jj in 1:r){
+     for(kk in 1:jj){
+       row_idx <- (ii - 1) * r + jj
+       col_idx <- (ii - 1) * r + kk
+       if(jj != kk){
+         if((type[jj] == 1) & type[kk] == 1){
+           cov_mat[row_idx, col_idx] <- Sigma[jj, kk]
+         } else if((type[jj] == 1) & (type[kk] == 3)){
+           cov_mat[row_idx, col_idx] <- Sigma[jj, kk] * exp(Xb[ii, kk] + 0.5 * Sigma[kk, kk])
+         } else if((type[jj] == 3) & (type[kk] == 1)){
+           cov_mat[jj, kk] <- Sigma[kk, jj] * exp(Xb[ii, jj] + 0.5 * Sigma[jj, jj])
+         } else if ((type[jj] == 3) & (type[kk] == 3)){
+           cov_mat[jj, kk] <- exp(Xb[ii, jj] + Xb[ii, kk] + 0.5 * Sigma[jj, jj] +
+                                    0.5 *Sigma[kk, kk] + Sigma[jj, kk]) -
+             exp(Xb[ii, jj] + Xb[ii, kk] + 0.5 * Sigma[jj, jj] + 0.5 * Sigma[kk, kk])
+         } else{
+           R <- chol(Sigma[c(jj, kk), c(jj, kk)])
+           integrand <- function(w){
+             w <- w %*% R + matrix(Xb[ii, c(jj, kk)], nrow = nrow(w), ncol = 2, byrow = TRUE)
+             w <- t(get_cumulant_diffs(W_T = t(w), type = type[c(jj, kk)], order = 1))
+             w <- w - matrix(mu[c(jj, kk)], nrow = nrow(w), ncol = 2, byrow = TRUE)
+             w[, 1] * w[, 2]
+           }
+           cov_mat[jj, kk] <- mvQuad::quadrature(integrand, grid = grid_gauss)
+         }
+         cov_mat[kk, jj] <- cov_mat[jj, kk]
+       } else if(type[jj] == 1){ # Normal variance
+         cov_mat[jj, jj] <- Sigma[jj, jj] + psi[jj]
+       } else if(type[jj] == 2){ # Bernoulli variance
+         cov_mat[jj, jj] <- mu[ii, jj] - mu[ii, jj]^2
+       } else{ # Poisson variance
+         cov_mat[jj, jj] <- psi[jj] * exp(Xb[ii, jj] + 0.5 * Sigma[jj, jj]) +
+           exp(2 * Xb[ii, jj] + 2 * Sigma[jj, jj]) - mu[ii, jj]^2
+       }
+     }
+   }
+ }
+
   return(cov_mat)
 }

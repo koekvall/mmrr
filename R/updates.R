@@ -44,6 +44,7 @@ update_beta <- function(Y, X, W, Sigma, psi, type)
 #' @param Y Matrix (n x r) of responses.
 #' @param X Matrix (nr x p) of predictors.
 #' @param W Matrix (n x r) of expansion points (~predicted latent variables).
+#' @param Beta Vector (p by 1) of regression coefficients.
 #' @param Sigma Covariance matrix(r x r) of the latent vector.
 #' @param psi Vector (r x 1) of conditional variance parameters.
 #' @param type Vector (r x 1) indicating response types.
@@ -110,6 +111,24 @@ update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
   return(W)
 }
 
+#' Accelerated projected gradient descent update function for Sigma
+#'
+#' @param R Matrix (n x r) of working residuals.
+#' @param D2 Matrix (n x p) second derivatives of cumulant functions evaluated
+#'   at the expansion points.
+#' @param psi Vector (r x 1) of conditional variance parameters.
+#' @param Sigma.init Matrix (r x r ) with starting value for Sigma.
+#' @param M Matrix (r x r) with restrictions for elements o Sigma
+#'   (NA = no restriction).
+#' @param epsilon Scalar with lower bound on eigenvalues of Sigma.
+#' @param tol.dykstra Scalar tolerance parameter for projection algorithm,
+#' @param tol.ipiano Scalar tolerance for descent algorithm.
+#' @param max.iter.dykstra Integer maximum number of iterations for projection
+#'   algorithm.
+#' @param max.iter.ipiano Integer maximum number of iterations for descent
+#'   algorithm.
+#' @param quiet Logical indicating whether to print information while running.
+#' @return Matrix (r x r) with update of Sigma
 update_Sigma_pgd <- function(R, D2, psi, Sigma.init, M, epsilon = 0,
                               tol.dykstra = 1e-12, tol.ipiano = 1e-10,
                               max.iter.dykstra = 1e3, max.iter.ipiano = 1e3,
@@ -186,6 +205,21 @@ update_Sigma_pgd <- function(R, D2, psi, Sigma.init, M, epsilon = 0,
   return(Sigma)
 }
 
+
+#' Trust region update function for Sigma
+#'
+#' @param Sigma_start Matrix (r x r ) with starting value for Sigma.
+#' @param R Matrix (n x r) of working residuals.
+#' @param D2 Matrix (n x p) second derivatives of cumulant functions evaluated
+#'   at the expansion points.
+#' @param psi Vector (r x 1) of conditional variance parameters.
+
+#' @param M Matrix (r x r) with restrictions for elements o Sigma
+#'   (NA = no restriction).
+#' @param use_idx Vector with indexes for observations to use in update.
+#' @param tol Scalar tolerance parameter for trust region algorithm.
+#' @param maxit Integer maximum number of iterations for trust region algorithm.
+#' @return Matrix (r x r) with update of Sigma
 update_Sigma_trust <- function(Sigma_start, R, D2, psi, M, use_idx,
                                tol = sqrt(.Machine$double.eps),
                                maxit =  100)

@@ -7,7 +7,7 @@
 cov_mmrr(X, Beta, Sigma, psi, type, num_nodes = 10)
 }
 \arguments{
-\item{X}{An r x p matrix of predictors.}
+\item{X}{An nr x p matrix of predictors.}
 
 \item{Beta}{A p-vector of latent regression coefficients}
 
@@ -23,7 +23,8 @@ and 3 means Poisson.}
 calculate predictions}
 }
 \value{
-An r x r covariance matrix for responses given predictors (Y|X)
+An nr x nr covariance matrix for responses given predictors (Y|X),
+  in sparse format if n > 1.
 }
 \description{
 Calculate marginal covariance matrix of responses given predictors

@@ -1,3 +1,12 @@
+#' Update function for regression coefficients
+#'
+#' @param Y Matrix (n x r) of responses.
+#' @param X Matrix (nr x p) of predictors.
+#' @param W Matrix (n x r) of expansion points (~predicted latent variables).
+#' @param Sigma Covariance matrix(r x r) of the latent vector.
+#' @param psi Vector (r x 1) of conditional variance parameters.
+#' @param type Vector (r x 1) indicating response types.
+#' @return Updated vector of regression coefficients.
 update_beta <- function(Y, X, W, Sigma, psi, type)
 {
   n <- nrow(Y)
@@ -29,6 +38,21 @@ update_beta <- function(Y, X, W, Sigma, psi, type)
   return(solve(H[, 1:p], H[, p + 1]))
 }
 
+
+#' Update function for expansion points (~predicted latent variables)
+#'
+#' @param Y Matrix (n x r) of responses.
+#' @param X Matrix (nr x p) of predictors.
+#' @param W Matrix (n x r) of expansion points (~predicted latent variables).
+#' @param Sigma Covariance matrix(r x r) of the latent vector.
+#' @param psi Vector (r x 1) of conditional variance parameters.
+#' @param type Vector (r x 1) indicating response types.
+#' @param pen Regularization parameter lower bouding the eigenvalue of a
+#'   covariance matrix and multiplying an L2 penalty (see paper).
+#' @param tol Tolerance parameter for trust region algorithm
+#' @param maxit Maximum number of iterations for trust region algorithm.
+#' @param quiet Logical indicating whether to print information while running.
+#' @return Matrix of updated expansion points
 update_W <- function(Y, X, W, Beta, Sigma, psi, type, pen = 1e-4, tol = 1e-8,
                      maxit = 100, quiet = T)
 {

@@ -15,9 +15,6 @@
 //
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-//
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::export]]
 Rcpp::List obj_sigma_rcpp(arma::mat Sigma,
                           const arma::mat R_T,
                           const arma::mat D2_T,

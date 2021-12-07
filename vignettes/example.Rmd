@@ -57,6 +57,14 @@ fit <- mmrr(Y = Y, X = X, type = type, psi = psi)
 # Get estimates
 fit$Beta
 fit$Sigma
+
+# Get estimated means for first observation
+predict_mmrr(X = X[1:r, ], Beta = fit$Beta, sigma = sqrt(diag(fit$Sigma)),
+             type = type, num_nodes = 10)
+
+# Get estimated covariance matrix for first observation
+cov_mmrr(X = X[1:r, ], Beta = fit$Beta, Sigma = fit$Sigma, psi = psi,
+         type = type, num_nodes = 10)
 ```
 
 Suppose we want to test whether the Normal and Bernoulli variable are independent. That is equivalent to testing whether $\Sigma_{12} = \Sigma_{21} = 0$. We fit the null model by incorporating the elementwise restrictions on $\Sigma$ using the argument $M$. We also restrict $\Sigma_{22} = 1$ for identifiability because the second response is Bernoulli (this restriction is automatic when the user does not supply $M$).
